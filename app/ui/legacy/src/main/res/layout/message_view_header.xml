@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.fsck.k9.view.MessageHeader xmlns:android="http://schemas.android.com/apk/res/android"
+<com.fsck.k9.view.MessageHeader
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/header_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    >
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        >
 
         <com.google.android.material.chip.Chip
             android:id="@+id/account_name"
@@ -20,7 +23,6 @@
             android:clickable="false"
             android:paddingVertical="4sp"
             android:textColor="@android:color/white"
-            android:textSize="14sp"
             app:chipMinHeight="0dp"
             app:ensureMinTouchTargetSize="false"
             app:layout_constraintStart_toStartOf="parent"
@@ -28,7 +30,8 @@
             app:textEndPadding="6sp"
             app:textStartPadding="8sp"
             tools:chipBackgroundColor="#1976D2"
-            tools:text="Account name" />
+            tools:text="Account name"
+            />
 
         <com.fsck.k9.ui.helper.BottomBaselineTextView
             android:id="@+id/subject"
@@ -41,15 +44,15 @@
             android:layout_marginBottom="16dp"
             android:ellipsize="end"
             android:maxLines="3"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="20sp"
+            android:textAppearance="?attr/textAppearanceTitleLarge"
             app:layout_goneMarginTop="16dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/flagged"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/account_name"
             app:layout_constraintVertical_bias="0.0"
-            tools:text="Message subject" />
+            tools:text="Message subject"
+            />
 
         <ImageView
             android:id="@+id/flagged"
@@ -60,7 +63,8 @@
             android:paddingHorizontal="12dp"
             android:src="@drawable/btn_select_star"
             app:layout_constraintBaseline_toBaselineOf="@+id/subject"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -72,7 +76,8 @@
         android:focusable="true"
         android:foreground="?attr/selectableItemBackground"
         android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        >
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/contact_picture"
@@ -84,9 +89,10 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:src="@drawable/ic_contact_picture" />
+            tools:src="@drawable/ic_account_circle"
+            />
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/from"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -96,17 +102,17 @@
             android:ellipsize="end"
             android:gravity="center_vertical"
             android:maxLines="1"
-            android:textAppearance="?attr/textAppearanceBody1"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
             app:layout_constrainedWidth="true"
             app:layout_constraintEnd_toStartOf="@+id/date"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintHorizontal_chainStyle="packed"
             app:layout_constraintStart_toEndOf="@id/contact_picture"
             app:layout_constraintTop_toTopOf="parent"
-            tools:text="Sender name" />
+            tools:text="Sender name"
+            />
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -114,11 +120,12 @@
             android:ellipsize="none"
             android:singleLine="true"
             android:textAppearance="?attr/textAppearanceCaption"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="?attr/colorSecondary"
             app:layout_constraintBaseline_toBaselineOf="@+id/from"
             app:layout_constraintEnd_toStartOf="@+id/menu_primary_action"
             app:layout_constraintStart_toEndOf="@id/from"
-            tools:text="Sep 19" />
+            tools:text="Sep 19"
+            />
 
         <ImageView
             android:id="@+id/crypto_status_icon"
@@ -128,9 +135,10 @@
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@+id/recipients"
             app:layout_constraintStart_toEndOf="@id/contact_picture"
-            app:srcCompat="@drawable/status_lock_disabled"
+            app:srcCompat="@drawable/ic_no_encryption"
             app:tint="?attr/openpgp_grey"
-            tools:visibility="visible" />
+            tools:visibility="visible"
+            />
 
         <com.fsck.k9.ui.messageview.RecipientNamesView
             android:id="@+id/recipients"
@@ -144,7 +152,8 @@
             app:layout_constraintStart_toEndOf="@id/crypto_status_icon"
             app:layout_constraintTop_toBottomOf="@+id/from"
             app:layout_constraintVertical_bias="0.0"
-            app:layout_goneMarginStart="16dp" />
+            app:layout_goneMarginStart="16dp"
+            />
 
         <ImageView
             android:id="@+id/menu_primary_action"
@@ -155,7 +164,8 @@
             android:paddingHorizontal="12dp"
             app:layout_constraintEnd_toStartOf="@id/menu_overflow"
             app:layout_constraintTop_toTopOf="@+id/menu_overflow"
-            tools:srcCompat="@drawable/ic_reply_all" />
+            tools:srcCompat="@drawable/ic_reply_all"
+            />
 
         <ImageView
             android:id="@+id/menu_overflow"
@@ -172,7 +182,8 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:srcCompat="@drawable/dots_vertical" />
+            app:srcCompat="@drawable/ic_more_vert"
+            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -12,15 +12,21 @@ if (testCoverageEnabled) {
 dependencies {
     implementation(projects.app.common)
     implementation(projects.core.ui.compose.theme2.k9mail)
+    implementation(projects.core.ui.legacy.theme2.k9mail)
     implementation(projects.feature.launcher)
 
     implementation(projects.app.core)
     implementation(projects.app.ui.legacy)
-    implementation(projects.app.ui.messageListWidget)
 
-    debugImplementation(projects.backend.demo)
+    implementation(projects.feature.widget.messageList)
+    implementation(projects.feature.widget.shortcut)
+    implementation(projects.feature.widget.unread)
 
     implementation(libs.androidx.work.runtime)
+
+    implementation(projects.feature.autodiscovery.api)
+    debugImplementation(projects.backend.demo)
+    debugImplementation(projects.feature.autodiscovery.demo)
 
     testImplementation(libs.robolectric)
 
@@ -36,8 +42,8 @@ android {
         applicationId = "com.fsck.k9"
         testApplicationId = "com.fsck.k9.tests"
 
-        versionCode = 39000
-        versionName = "6.900-SNAPSHOT"
+        versionCode = 39004
+        versionName = "6.905-SNAPSHOT"
 
         // Keep in sync with the resource string array "supported_languages"
         resourceConfigurations.addAll(
@@ -47,6 +53,7 @@ android {
                 "bg",
                 "br",
                 "ca",
+                "co",
                 "cs",
                 "cy",
                 "da",
@@ -71,6 +78,7 @@ android {
                 "it",
                 "iw",
                 "ja",
+                "ko",
                 "lt",
                 "lv",
                 "ml",
@@ -88,12 +96,13 @@ android {
                 "sv",
                 "tr",
                 "uk",
+                "vi",
                 "zh_CN",
                 "zh_TW",
             ),
         )
 
-        buildConfigField("String", "CLIENT_ID_APP_NAME", "\"K-9 Mail\"")
+        buildConfigField("String", "CLIENT_INFO_APP_NAME", "\"K-9 Mail\"")
     }
 
     signingConfigs {
@@ -142,8 +151,6 @@ android {
                 "OAUTH_MICROSOFT_REDIRECT_URI",
                 "\"msauth://com.fsck.k9/Dx8yUsuhyU3dYYba1aA16Wxu5eM%3D\"",
             )
-
-            manifestPlaceholders["appAuthRedirectScheme"] = "com.fsck.k9"
         }
 
         debug {
@@ -174,8 +181,6 @@ android {
                 "OAUTH_MICROSOFT_REDIRECT_URI",
                 "\"msauth://com.fsck.k9.debug/VZF2DYuLYAu4TurFd6usQB2JPts%3D\"",
             )
-
-            manifestPlaceholders["appAuthRedirectScheme"] = "com.fsck.k9.debug"
         }
     }
 

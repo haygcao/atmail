@@ -97,9 +97,9 @@ private fun selectTrailingIcon(
     return if (hasTrailingIcon) {
         {
             val image = if (isShowPasswordAllowed(isEnabled, isPasswordVisible)) {
-                Icons.Filled.passwordVisibility
+                Icons.Outlined.Visibility
             } else {
-                Icons.Filled.passwordVisibilityOff
+                Icons.Outlined.VisibilityOff
             }
 
             val description = if (isShowPasswordAllowed(isEnabled, isPasswordVisible)) {

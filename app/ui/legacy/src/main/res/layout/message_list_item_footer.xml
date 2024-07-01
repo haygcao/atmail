@@ -7,14 +7,16 @@
     android:background="?attr/messageListRegularItemBackgroundColor"
     android:foreground="?attr/selectableItemBackground"
     android:gravity="center"
-    android:orientation="horizontal">
-    <TextView
+    android:orientation="horizontal"
+    >
+
+    <com.google.android.material.textview.MaterialTextView
         android:id="@+id/main_text"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="?android:attr/textColorPrimary"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
         tools:text="Load up to 100 more"
         />
+
 </LinearLayout>

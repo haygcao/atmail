@@ -45,21 +45,23 @@
    - `app/ui/legacy/src/main/res/raw/changelog_master.xml`
    - `app-metadata/com.fsck.k9/en-US/changelogs/${versionCode}.txt`
      Use past tense. Try to keep them high level. Focus on the user (experience).
-3. Commit the changes. Message: "Version $versionName"
-4. Run `./gradlew clean :app-k9mail:assembleRelease --no-build-cache --no-configuration-cache`
-5. Update an existing installation to make sure the app is signed with the proper key and runs on a real device.
+3. Update the metadata link to point to K-9 Mail's data:
+   `ln --symbolic --no-dereference --force app-metadata/com.fsck.k9 metadata`
+4. Commit the changes. Message: "Version $versionName"
+5. Run `./gradlew clean :app-k9mail:assembleRelease --no-build-cache --no-configuration-cache`
+6. Update an existing installation to make sure the app is signed with the proper key and runs on a real device.
    ```
    adb install -r app-k9mail/build/outputs/apk/release/app-k9mail-release.apk
    ```
-6. Tag as $versionName, e.g. `6.508`
-7. Copy `app-k9mail/build/outputs/apk/release/app-k9mail-release.apk` as `k9-${versionName}.apk` to Google Drive (MZLA
+7. Tag as $versionName, e.g. `6.508`
+8. Copy `app-k9mail/build/outputs/apk/release/app-k9mail-release.apk` as `k9-${versionName}.apk` to Google Drive (MZLA
    Team > K9 > APKs)
-8. Change versionName in `app-k9mail/build.gradle.kts` to next version name followed by `-SNAPSHOT`
-9. Commit the changes. Message: "Prepare for version $newVersionName"
-10. Update `gh-pages` branch with the new change log
-11. Push `main` branch
-12. Push tags
-13. Push `gh-pages` branch
+9. Change versionName in `app-k9mail/build.gradle.kts` to next version name followed by `-SNAPSHOT`
+10. Commit the changes. Message: "Prepare for version $newVersionName"
+11. Update `gh-pages` branch with the new change log
+12. Push `main` branch
+13. Push tags
+14. Push `gh-pages` branch
 
 ### Create release on GitHub
 
@@ -91,11 +93,6 @@
      versionCode: ${versionCode}
      commit: "${tagName}"
      subdir: app-k9mail
-     prebuild: ( cd .. && ln -s app-metadata/com.fsck.k9 metadata )
-     sudo:
-       - apt-get update
-       - apt-get install -y openjdk-17-jdk-headless
-       - update-alternatives --auto java
      gradle:
        - yes
      scandelete:
@@ -128,14 +125,22 @@
 
 ## Release a stable version
 
-1. If this is the first stable release in a series, create a new maintenance branch, e.g. `6.8-MAINT`
-2. Switch to the appropriate maintenance branch
-3. Update versionCode and versionName in `app-k9mail/build.gradle.kts` (stable releases use an even digit after the
+When the team decides the `main` branch is stable enough and it's time to release a new stable version, create a new
+maintenance branch (off `main`) using the desired version number with the last two digits dropped followed by `-MAINT`.
+Example: `6.8-MAINT` when the first stable release is K-9 Mail 6.800.
+
+Ideally the first stable release contains no code changes when compared to the last beta version built from `main`.
+That way the new release won't contain any changes that weren't exposed to user testing in a beta version before.
+
+1. Switch to the appropriate maintenance branch, e.g. `6.8-MAINT`
+2. Update versionCode and versionName in `app-k9mail/build.gradle.kts` (stable releases use an even digit after the
    dot, e.g. `5.400`, `6.603`)
-4. Create change log entries in
+3. Create change log entries in
    - `app/ui/legacy/src/main/res/raw/changelog_master.xml`
    - `app-k9mail/fastlane/metadata/android/en-US/changelogs/${versionCode}.txt`
      Use past tense. Try to keep them high level. Focus on the user (experience).
+4. Update the metadata link to point to K-9 Mail's data:
+   `ln --symbolic --no-dereference --force app-metadata/com.fsck.k9 metadata`
 5. Commit the changes. Message: "Version $versionName"
 6. Run `./gradlew clean :app-k9mail:assembleRelease --no-build-cache --no-configuration-cache`
 7. Update an existing installation to make sure the app is signed with the proper key and runs on a real device.
@@ -179,11 +184,6 @@
      versionCode: ${versionCode}
      commit: "${tagName}"
      subdir: app-k9mail
-     prebuild: ( cd .. && ln -s app-metadata/com.fsck.k9 metadata )
-     sudo:
-       - apt-get update
-       - apt-get install -y openjdk-17-jdk-headless
-       - update-alternatives --auto java
      gradle:
        - yes
      scandelete:

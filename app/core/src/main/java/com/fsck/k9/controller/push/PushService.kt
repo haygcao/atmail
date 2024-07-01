@@ -1,5 +1,6 @@
 package com.fsck.k9.controller.push
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -13,6 +14,7 @@ import timber.log.Timber
  * Foreground service that is used to keep the app alive while listening for new emails (Push).
  */
 class PushService : Service() {
+    private val pushServiceManager: PushServiceManager by inject()
     private val pushNotificationManager: PushNotificationManager by inject()
     private val pushController: PushController by inject()
 
@@ -22,11 +24,18 @@ class PushService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Timber.v("PushService.onStartCommand()")
+        Timber.v("PushService.onStartCommand(%s)", intent)
         super.onStartCommand(intent, flags, startId)
 
-        startForeground()
-        initializePushController()
+        val isAutomaticRestart = intent == null
+        if (isAutomaticRestart) {
+            maybeStartForeground()
+            initializePushController()
+        } else {
+            startForeground()
+        }
+
+        notifyServiceStarted()
 
         return START_STICKY
     }
@@ -34,7 +43,23 @@ class PushService : Service() {
     override fun onDestroy() {
         Timber.v("PushService.onDestroy()")
         pushNotificationManager.setForegroundServiceStopped()
+        notifyServiceStopped()
         super.onDestroy()
+    }
+
+    private fun maybeStartForeground() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            startForeground()
+        } else {
+            try {
+                startForeground()
+            } catch (e: ForegroundServiceStartNotAllowedException) {
+                Timber.e(e, "Ignoring ForegroundServiceStartNotAllowedException during automatic restart.")
+
+                // This works around what seems to be a bug in at least Android 14.
+                // See https://github.com/thunderbird/thunderbird-android/issues/7416 for more details.
+            }
+        }
     }
 
     private fun startForeground() {
@@ -46,6 +71,18 @@ class PushService : Service() {
         } else {
             startForeground(notificationId, notification)
         }
+    }
+
+    private fun notifyServiceStarted() {
+        // If our process was low-memory killed and now this service is being restarted by the system,
+        // PushServiceManager doesn't necessarily know about this service's state. So we're updating it now.
+        pushServiceManager.setServiceStarted()
+    }
+
+    private fun notifyServiceStopped() {
+        // Usually this service is only stopped via PushServiceManager. But we still notify PushServiceManager here in
+        // case the system decided to stop the service (without killing the process).
+        pushServiceManager.setServiceStopped()
     }
 
     private fun initializePushController() {

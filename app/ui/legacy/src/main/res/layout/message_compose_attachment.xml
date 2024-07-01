@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     style="@style/AttachmentCard"
@@ -8,11 +9,13 @@
     android:layout_marginEnd="12dp"
     android:layout_marginBottom="12dp"
     android:orientation="vertical"
-    app:cardElevation="1dp">
+    app:cardElevation="1dp"
+    >
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        >
 
         <ImageView
             android:id="@+id/attachment_preview"
@@ -24,7 +27,8 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:visibility="visible" />
+            tools:visibility="visible"
+            />
 
         <ImageView
             android:id="@+id/attachment_type"
@@ -34,13 +38,14 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             android:contentDescription="@null"
-            app:srcCompat="@drawable/ic_attachment_generic"
+            app:srcCompat="@drawable/ic_draft"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/attachment_preview"
-            app:tint="?attr/colorAccent" />
+            app:tint="?attr/colorSecondary"
+            />
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/attachment_name"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -48,37 +53,39 @@
             android:layout_marginTop="8dp"
             android:ellipsize="start"
             android:singleLine="true"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="14sp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
             app:layout_constraintBottom_toTopOf="@+id/attachment_size"
             app:layout_constraintEnd_toStartOf="@id/barrier_button"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toEndOf="@+id/attachment_type"
             app:layout_constraintTop_toBottomOf="@+id/attachment_preview"
             app:layout_constraintVertical_chainStyle="packed"
-            tools:text="filename.ext" />
+            tools:text="filename.ext"
+            />
 
-        <TextView
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/attachment_size"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:singleLine="true"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="12sp"
+            android:textColor="?attr/colorSecondary"
+            android:textAppearance="?attr/textAppearanceBodySmall"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/barrier_button"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="@+id/attachment_name"
             app:layout_constraintTop_toBottomOf="@+id/attachment_name"
             app:layout_constraintVertical_bias="0.0"
-            tools:text="99 KB" />
+            tools:text="99 KB"
+            />
 
         <androidx.constraintlayout.widget.Barrier
             android:id="@+id/barrier_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:barrierDirection="left" />
+            app:barrierDirection="left"
+            />
 
         <ProgressBar
             android:id="@+id/progressBar"
@@ -89,7 +96,8 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/attachment_delete"
             app:layout_constraintStart_toEndOf="@id/barrier_button"
-            app:layout_constraintTop_toBottomOf="@+id/attachment_preview" />
+            app:layout_constraintTop_toBottomOf="@+id/attachment_preview"
+            />
 
         <ImageButton
             android:id="@+id/attachment_delete"
@@ -99,11 +107,12 @@
             android:layout_marginBottom="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/remove_attachment_action"
-            app:srcCompat="?attr/iconActionCancel"
+            app:srcCompat="@drawable/ic_close"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/progressBar"
-            app:layout_constraintTop_toBottomOf="@+id/attachment_preview" />
+            app:layout_constraintTop_toBottomOf="@+id/attachment_preview"
+            />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
