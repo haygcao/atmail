@@ -1,8 +1,20 @@
 plugins {
-    id(ThunderbirdPlugins.Library.jvm)
+    id(ThunderbirdPlugins.Library.kmp)
 }
 
-dependencies {
-    implementation(libs.assertk)
-    implementation(libs.turbine)
+kotlin {
+    android {
+        namespace = "net.thunderbird.core.testing"
+    }
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.assertk)
+            implementation(libs.turbine)
+        }
+    }
+}
+
+codeCoverage {
+    lineCoverage = 68
 }

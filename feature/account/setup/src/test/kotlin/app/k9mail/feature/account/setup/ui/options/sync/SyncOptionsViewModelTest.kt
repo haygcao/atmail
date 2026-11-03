@@ -1,9 +1,8 @@
 package app.k9mail.feature.account.setup.ui.options.sync
 
-import app.cash.turbine.testIn
-import app.k9mail.core.ui.compose.testing.MainDispatcherRule
 import app.k9mail.core.ui.compose.testing.mvi.assertThatAndEffectTurbineConsumed
 import app.k9mail.core.ui.compose.testing.mvi.eventStateTest
+import app.k9mail.core.ui.compose.testing.mvi.runMviTest
 import app.k9mail.core.ui.compose.testing.mvi.turbinesWithInitialStateCheck
 import app.k9mail.feature.account.common.data.InMemoryAccountStateRepository
 import app.k9mail.feature.account.common.domain.entity.AccountState
@@ -14,57 +13,66 @@ import app.k9mail.feature.account.setup.ui.options.sync.SyncOptionsContract.Effe
 import app.k9mail.feature.account.setup.ui.options.sync.SyncOptionsContract.Event
 import app.k9mail.feature.account.setup.ui.options.sync.SyncOptionsContract.State
 import assertk.assertThat
-import assertk.assertions.assertThatAndTurbinesConsumed
 import assertk.assertions.isEqualTo
-import kotlinx.coroutines.test.runTest
-import org.junit.Rule
-import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import net.thunderbird.components.ui.testing.coroutines.MainDispatcherHelper
 
 class SyncOptionsViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mainDispatcher = MainDispatcherHelper(UnconfinedTestDispatcher())
+
+    @BeforeTest
+    fun setUp() {
+        mainDispatcher.setUp()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcher.tearDown()
+    }
 
     private val testSubject = SyncOptionsViewModel(
         accountStateRepository = InMemoryAccountStateRepository(),
     )
 
     @Test
-    fun `should change state when OnCheckFrequencyChanged event is received`() = runTest {
+    fun `should change state when OnCheckFrequencyChanged event is received`() = runMviTest {
         eventStateTest(
             viewModel = testSubject,
             initialState = State(),
             event = Event.OnCheckFrequencyChanged(EmailCheckFrequency.EVERY_12_HOURS),
             expectedState = State(checkFrequency = EmailCheckFrequency.EVERY_12_HOURS),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when OnMessageDisplayCountChanged event is received`() = runTest {
+    fun `should change state when OnMessageDisplayCountChanged event is received`() = runMviTest {
         eventStateTest(
             viewModel = testSubject,
             initialState = State(),
             event = Event.OnMessageDisplayCountChanged(EmailDisplayCount.MESSAGES_1000),
             expectedState = State(messageDisplayCount = EmailDisplayCount.MESSAGES_1000),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when OnShowNotificationChanged event is received`() = runTest {
+    fun `should change state when OnShowNotificationChanged event is received`() = runMviTest {
         eventStateTest(
             viewModel = testSubject,
             initialState = State(),
             event = Event.OnShowNotificationChanged(false),
             expectedState = State(showNotification = false),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
     fun `should store state and emit NavigateNext effect when OnNextClicked event received and input valid`() =
-        runTest {
+        runMviTest {
             val accountStateRepository = InMemoryAccountStateRepository()
             val initialState = State(
                 checkFrequency = EmailCheckFrequency.EVERY_HOUR,
@@ -98,26 +106,12 @@ class SyncOptionsViewModelTest {
         }
 
     @Test
-    fun `should emit NavigateBack effect when OnBackClicked event received`() = runTest {
+    fun `should emit NavigateBack effect when OnBackClicked event received`() = runMviTest {
         val viewModel = testSubject
-        val stateTurbine = viewModel.state.testIn(backgroundScope)
-        val effectTurbine = viewModel.effect.testIn(backgroundScope)
-        val turbines = listOf(stateTurbine, effectTurbine)
-
-        assertThatAndTurbinesConsumed(
-            actual = stateTurbine.awaitItem(),
-            turbines = turbines,
-        ) {
-            isEqualTo(State())
-        }
+        val turbines = turbinesWithInitialStateCheck(viewModel, State())
 
         viewModel.event(Event.OnBackClicked)
 
-        assertThatAndTurbinesConsumed(
-            actual = effectTurbine.awaitItem(),
-            turbines = turbines,
-        ) {
-            isEqualTo(Effect.NavigateBack)
-        }
+        assertThat(turbines.awaitEffectItem()).isEqualTo(Effect.NavigateBack)
     }
 }

@@ -5,7 +5,6 @@ import com.fsck.k9.mail.CertificateValidationException
 import com.fsck.k9.mail.ClientCertificateError.CertificateExpired
 import com.fsck.k9.mail.ClientCertificateError.RetrievalFailure
 import com.fsck.k9.mail.ClientCertificateException
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.MissingCapabilityException
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.oauth.AuthStateStorage
@@ -16,12 +15,13 @@ import com.fsck.k9.mail.server.ServerSettingsValidationResult.ClientCertificateE
 import com.fsck.k9.mail.server.ServerSettingsValidator
 import com.fsck.k9.mail.ssl.TrustedSocketFactory
 import java.io.IOException
+import net.thunderbird.core.common.exception.MessagingException
 
 class ImapServerSettingsValidator(
     private val trustedSocketFactory: TrustedSocketFactory,
     private val oAuth2TokenProviderFactory: OAuth2TokenProviderFactory?,
-    private val clientIdAppName: String,
-    private val clientIdAppVersion: String,
+    private val clientInfoAppName: String,
+    private val clientInfoAppVersion: String,
 ) : ServerSettingsValidator {
 
     @Suppress("TooGenericExceptionCaught")
@@ -33,7 +33,7 @@ class ImapServerSettingsValidator(
             override val logLabel = "check"
             override fun isSubscribedFoldersOnly() = false
             override fun isExpungeImmediately() = false
-            override fun clientId() = ImapClientId(appName = clientIdAppName, appVersion = clientIdAppVersion)
+            override fun clientInfo() = ImapClientInfo(appName = clientInfoAppName, appVersion = clientInfoAppVersion)
         }
         val oAuth2TokenProvider = createOAuth2TokenProviderOrNull(authStateStorage)
         val store = RealImapStore(serverSettings, config, trustedSocketFactory, oAuth2TokenProvider)

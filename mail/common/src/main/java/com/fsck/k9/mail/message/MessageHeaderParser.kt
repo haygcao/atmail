@@ -1,13 +1,14 @@
 package com.fsck.k9.mail.message
 
-import com.fsck.k9.mail.MessagingException
 import java.io.IOException
 import java.io.InputStream
+import net.thunderbird.core.common.exception.MessagingException
 import org.apache.james.mime4j.MimeException
 import org.apache.james.mime4j.parser.AbstractContentHandler
 import org.apache.james.mime4j.parser.MimeStreamParser
 import org.apache.james.mime4j.stream.Field
 import org.apache.james.mime4j.stream.MimeConfig
+import org.apache.james.mime4j.util.ContentUtil
 
 object MessageHeaderParser {
     @Throws(MessagingException::class)
@@ -41,7 +42,7 @@ object MessageHeaderParser {
     ) : AbstractContentHandler() {
         override fun field(rawField: Field) {
             val name = rawField.name
-            val raw = rawField.raw.toString()
+            val raw = ContentUtil.decode(Charsets.UTF_8, rawField.raw)
             collector.addRawHeader(name, raw)
         }
     }

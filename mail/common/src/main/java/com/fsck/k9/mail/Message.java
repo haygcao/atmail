@@ -6,15 +6,22 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
-import com.fsck.k9.logging.Timber;
+import androidx.annotation.Nullable;
+import net.thunderbird.core.common.mail.Flag;
 import com.fsck.k9.mail.filter.CountingOutputStream;
 import com.fsck.k9.mail.filter.EOLConvertingOutputStream;
+import net.thunderbird.feature.account.AccountId;
+import net.thunderbird.legacy.logging.Log;
 import org.jetbrains.annotations.NotNull;
+import net.thunderbird.core.common.exception.MessagingException;
 
 
 public abstract class Message implements Part, Body {
+    private static final String TAG = "Message";
+
     protected static final String DEFAULT_MIME_TYPE = "text/plain";
 
 
@@ -27,6 +34,8 @@ public abstract class Message implements Part, Body {
     private Set<Flag> mFlags = EnumSet.noneOf(Flag.class);
 
     private Date mInternalDate;
+    @Nullable
+    private AccountId accountId;
 
     public boolean olderThan(Date earliestDate) {
         if (earliestDate == null) {
@@ -151,6 +160,15 @@ public abstract class Message implements Part, Body {
         return mFlags.contains(flag);
     }
 
+    public void setAccountId(AccountId accountId) {
+        this.accountId = Objects.requireNonNull(accountId, "The accountId parameter must not be null");
+    }
+
+    @Nullable
+    public AccountId getAccountId() {
+        return accountId;
+    }
+
 
     public void destroy() throws MessagingException {}
 
@@ -164,8 +182,24 @@ public abstract class Message implements Part, Body {
             eolOut.flush();
             return out.getCount();
         } catch (IOException | MessagingException e) {
-            Timber.e(e, "Failed to calculate a message size");
+            Log.e(TAG, e, "Failed to calculate a message size");
         }
         return 0;
+    }
+
+    /*
+     * Returns true if any address in this message uses a non-ASCII
+     * character in either the localpart or the domain, and false if
+     * all addresses use only ASCII.
+     */
+    public boolean usesAnyUnicodeAddresses() {
+        for (final Address a : getFrom())
+            if (a.needsUnicode())
+                return true;
+        for (RecipientType t : RecipientType.values())
+            for (final Address r : getRecipients(t))
+                if (r.needsUnicode())
+                    return true;
+        return false;
     }
 }

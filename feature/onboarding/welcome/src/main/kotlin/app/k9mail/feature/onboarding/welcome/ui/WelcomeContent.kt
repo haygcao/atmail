@@ -13,71 +13,79 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.designsystem.atom.Background
-import app.k9mail.core.ui.compose.designsystem.atom.button.ButtonFilled
-import app.k9mail.core.ui.compose.designsystem.atom.button.ButtonText
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextBody1
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextHeadline2
-import app.k9mail.core.ui.compose.designsystem.template.LazyColumnWithHeaderFooter
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveContent
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.ThunderbirdTheme
 import app.k9mail.feature.onboarding.welcome.R
+import net.thunderbird.components.ui.bolt.atom.Surface
+import net.thunderbird.components.ui.bolt.atom.button.ButtonFilled
+import net.thunderbird.components.ui.bolt.atom.button.ButtonText
+import net.thunderbird.components.ui.bolt.atom.text.TextBodyLarge
+import net.thunderbird.components.ui.bolt.atom.text.TextBodySmall
+import net.thunderbird.components.ui.bolt.atom.text.TextDisplayMediumAutoResize
+import net.thunderbird.components.ui.bolt.common.window.WindowWidthSizeClass
+import net.thunderbird.components.ui.bolt.common.window.calculateWindowSizeInfo
+import net.thunderbird.components.ui.bolt.template.LazyColumnWithHeaderFooter
+import net.thunderbird.components.ui.bolt.template.ResponsiveContent
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
+import org.jetbrains.compose.resources.painterResource
 
 private const val CIRCLE_COLOR = 0xFFEEEEEE
-private const val CIRCLE_SIZE_DP = 300
-private const val LOGO_SIZE_DP = 200
+private const val CIRCLE_SIZE_DP = 200
+private const val CIRCLE_SIZE_SMALL_DP = 125
+private const val LOGO_SIZE_DP = 125
+private const val LOGO_SIZE_SMALL_DP = 80
 
 @Composable
 internal fun WelcomeContent(
     onStartClick: () -> Unit,
     onImportClick: () -> Unit,
+    appName: String,
     modifier: Modifier = Modifier,
 ) {
-    Background(
+    Surface(
         modifier = modifier,
     ) {
-        ResponsiveContent {
+        ResponsiveContent { contentPadding ->
             LazyColumnWithHeaderFooter(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = contentPadding,
+                verticalArrangement = Arrangement.SpaceEvenly,
+                header = {
+                    WelcomeHeaderSection(title = appName)
+                },
                 footer = {
-                    WelcomeFooter(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = MainTheme.spacings.quadruple),
+                    WelcomeFooterSection(
                         onStartClick = onStartClick,
                         onImportClick = onImportClick,
                     )
                 },
-                verticalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                item {
-                    WelcomeLogo(
-                        modifier = Modifier
-                            .defaultItemModifier()
-                            .padding(top = MainTheme.spacings.double),
-                    )
-                }
-                item {
-                    WelcomeTitle(
-                        modifier = Modifier.defaultItemModifier(),
-                    )
-                }
-                item {
-                    WelcomeMessage(
-                        modifier = Modifier.defaultItemModifier(),
-                    )
-                }
-            }
+                content = {
+                    item { WelcomeMessageItem() }
+                },
+            )
         }
+    }
+}
+
+@Composable
+private fun WelcomeHeaderSection(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .defaultItemModifier()
+            .padding(top = BoltTheme.spacings.quadruple),
+        verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.double),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        WelcomeLogo()
+        WelcomeTitleItem(title = title)
     }
 }
 
@@ -85,6 +93,19 @@ internal fun WelcomeContent(
 private fun WelcomeLogo(
     modifier: Modifier = Modifier,
 ) {
+    val windowSizeInfo = calculateWindowSizeInfo()
+    val isSmallScreen =
+        windowSizeInfo.sizeClass.widthSizeClass == WindowWidthSizeClass.Small
+    val circleSize = if (isSmallScreen) {
+        CIRCLE_SIZE_SMALL_DP
+    } else {
+        CIRCLE_SIZE_DP
+    }
+    val logoSize = if (isSmallScreen) {
+        LOGO_SIZE_SMALL_DP
+    } else {
+        LOGO_SIZE_DP
+    }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -93,13 +114,13 @@ private fun WelcomeLogo(
             modifier = Modifier
                 .clip(CircleShape)
                 .background(Color(CIRCLE_COLOR))
-                .size(CIRCLE_SIZE_DP.dp),
+                .size(circleSize.dp),
         ) {
             Image(
-                painter = painterResource(id = MainTheme.images.logo),
+                painter = painterResource(BoltTheme.images.logo),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(LOGO_SIZE_DP.dp)
+                    .size(logoSize.dp)
                     .align(Alignment.Center),
             )
         }
@@ -107,15 +128,45 @@ private fun WelcomeLogo(
 }
 
 @Composable
+private fun WelcomeTitleItem(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier,
+    ) {
+        WelcomeTitle(
+            title = title,
+            modifier = Modifier.defaultItemModifier(),
+        )
+    }
+}
+
+@Composable
 private fun WelcomeTitle(
+    title: String,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(horizontal = BoltTheme.spacings.quadruple),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextHeadline2(
-            text = stringResource(id = R.string.onboarding_welcome_title),
+        TextDisplayMediumAutoResize(
+            text = title,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun WelcomeMessageItem(
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier,
+    ) {
+        WelcomeMessage(
+            modifier = Modifier.defaultItemModifier(),
         )
     }
 }
@@ -126,12 +177,34 @@ private fun WelcomeMessage(
 ) {
     Column(
         modifier = Modifier
-            .padding(start = MainTheme.spacings.quadruple, end = MainTheme.spacings.quadruple)
+            .padding(horizontal = BoltTheme.spacings.quadruple)
             .then(modifier),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TextBody1(
-            text = stringResource(id = R.string.onboarding_welcome_message),
+        TextBodyLarge(
+            text = stringResource(id = R.string.onboarding_welcome_text),
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun WelcomeFooterSection(
+    onStartClick: () -> Unit,
+    onImportClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = BoltTheme.spacings.quadruple),
+    ) {
+        WelcomeFooter(
+            onStartClick = onStartClick,
+            onImportClick = onImportClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = BoltTheme.spacings.quadruple),
         )
     }
 }
@@ -143,44 +216,30 @@ private fun WelcomeFooter(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.padding(bottom = MainTheme.spacings.double),
-        verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.quarter),
+        modifier = modifier.padding(bottom = BoltTheme.spacings.double),
+        verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.quarter),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ButtonFilled(
             text = stringResource(id = R.string.onboarding_welcome_start_button),
             onClick = onStartClick,
+            modifier = Modifier.testTag(OnboardingWelcomeTestTags.TEST_TAG_BTN_WELCOME_GET_STARTED),
         )
         ButtonText(
             text = stringResource(id = R.string.onboarding_welcome_import_button),
             onClick = onImportClick,
         )
-    }
-}
 
-private fun Modifier.defaultItemModifier() = composed {
-    fillMaxWidth()
-        .padding(MainTheme.spacings.default)
-}
-
-@Composable
-@PreviewDevices
-internal fun WelcomeContentK9Preview() {
-    K9Theme {
-        WelcomeContent(
-            onStartClick = {},
-            onImportClick = {},
+        TextBodySmall(
+            text = stringResource(R.string.onboarding_welcome_developed_by),
+            modifier = Modifier
+                .padding(top = BoltTheme.spacings.quadruple)
+                .padding(horizontal = BoltTheme.spacings.double),
         )
     }
 }
 
 @Composable
-@PreviewDevices
-internal fun WelcomeContentThunderbirdPreview() {
-    ThunderbirdTheme {
-        WelcomeContent(
-            onStartClick = {},
-            onImportClick = {},
-        )
-    }
-}
+private fun Modifier.defaultItemModifier() = this
+    .fillMaxWidth()
+    .padding(BoltTheme.spacings.default)

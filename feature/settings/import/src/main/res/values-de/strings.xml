@@ -29,7 +29,7 @@
     <string name="settings_import_outgoing_server_password_hint">Passwort des Postausgangsservers</string>
     <string name="settings_import_use_same_password_for_outgoing_server">Gleiches Passwort für den Postausgangsserver verwenden</string>
     <string name="settings_import_server_name_format">Servername: <xliff:g id="hostname">%s</xliff:g></string>
-    <string name="settings_import_oauth_description">Um dieses E-Mail-Konto mit K-9 Mail zu verwenden, musst du dich anmelden und der App Zugriff auf deine E-Mails gewähren.</string>
+    <string name="settings_import_oauth_description">Um dieses E-Mail-Konto zu verwenden, musst du dich anmelden und der App Zugriff auf deine E-Mails gewähren.</string>
     <string name="settings_import_oauth_sign_in">Anmelden</string>
     <string name="settings_import_oauth_sign_in_with_google">Mit Google anmelden</string>
     <string name="settings_import_oauth_error_oauth_flow_canceled">Autorisierung aufgehoben</string>
@@ -37,4 +37,8 @@
     <string name="settings_import_oauth_error_oauth_not_supported">OAuth 2.0 wird von diesem Anbieter derzeit nicht unterstützt.</string>
     <string name="settings_import_oauth_error_browser_not_found">Die App konnte keinen Browser finden, der für den Zugriff auf dein Konto verwendet werden kann.</string>
     <string name="settings_import_general_settings_item">Allgemeine Einstellungen</string>
+    <string name="settings_import_pick_app_button">Aus App importieren</string>
+    <string name="settings_import_pick_app_dialog_title">Aus App importieren</string>
+    <string name="settings_import_scan_qr_code_button">QR-Code scannen</string>
+    <string name="settings_import_app_version_not_supported">App-Version nicht unterstützt.</string>
 </resources>

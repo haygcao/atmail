@@ -1,7 +1,6 @@
 package app.k9mail.feature.account.setup.ui.options.sync
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -14,17 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextOverline
-import app.k9mail.core.ui.compose.designsystem.molecule.input.SelectInput
-import app.k9mail.core.ui.compose.designsystem.molecule.input.SwitchInput
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.ThunderbirdTheme
 import app.k9mail.feature.account.common.ui.AppTitleTopHeader
 import app.k9mail.feature.account.common.ui.item.defaultHeadlineItemPadding
 import app.k9mail.feature.account.common.ui.item.defaultItemPadding
@@ -33,17 +24,22 @@ import app.k9mail.feature.account.setup.domain.entity.EmailCheckFrequency
 import app.k9mail.feature.account.setup.domain.entity.EmailDisplayCount
 import app.k9mail.feature.account.setup.ui.options.sync.SyncOptionsContract.Event
 import app.k9mail.feature.account.setup.ui.options.sync.SyncOptionsContract.State
+import net.thunderbird.components.ui.bolt.atom.text.TextLabelSmall
+import net.thunderbird.components.ui.bolt.molecule.input.SelectInput
+import net.thunderbird.components.ui.bolt.molecule.input.SwitchInput
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
-@OptIn(ExperimentalLayoutApi::class)
 @Suppress("LongMethod")
 @Composable
 internal fun SyncOptionsContent(
     state: State,
     onEvent: (Event) -> Unit,
     contentPadding: PaddingValues,
+    brandName: String,
     modifier: Modifier = Modifier,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
 
     ResponsiveWidthContainer(
         modifier = Modifier
@@ -51,20 +47,23 @@ internal fun SyncOptionsContent(
             .consumeWindowInsets(contentPadding)
             .padding(contentPadding)
             .then(modifier),
-    ) {
+    ) { contentPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
+            contentPadding = contentPadding,
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.default),
+            verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.default),
         ) {
             item {
-                AppTitleTopHeader()
+                AppTitleTopHeader(
+                    title = brandName,
+                )
             }
 
             item {
-                TextOverline(
+                TextLabelSmall(
                     text = stringResource(id = R.string.account_setup_options_section_sync_options),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -104,32 +103,8 @@ internal fun SyncOptionsContent(
             }
 
             item {
-                Spacer(modifier = Modifier.requiredHeight(MainTheme.sizes.smaller))
+                Spacer(modifier = Modifier.requiredHeight(BoltTheme.sizes.smaller))
             }
         }
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-internal fun SyncOptionsContentK9Preview() {
-    K9Theme {
-        SyncOptionsContent(
-            state = State(),
-            onEvent = {},
-            contentPadding = PaddingValues(),
-        )
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-internal fun SyncOptionsContentThunderbirdPreview() {
-    ThunderbirdTheme {
-        SyncOptionsContent(
-            state = State(),
-            onEvent = {},
-            contentPadding = PaddingValues(),
-        )
     }
 }

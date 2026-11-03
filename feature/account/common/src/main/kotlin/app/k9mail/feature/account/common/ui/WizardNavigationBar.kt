@@ -6,15 +6,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.designsystem.atom.button.ButtonFilled
-import app.k9mail.core.ui.compose.designsystem.atom.button.ButtonOutlined
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.PreviewWithThemes
 import app.k9mail.feature.account.common.R
+import net.thunderbird.components.ui.bolt.atom.button.ButtonFilled
+import net.thunderbird.components.ui.bolt.atom.button.ButtonOutlined
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Composable
 fun WizardNavigationBar(
@@ -29,15 +27,16 @@ fun WizardNavigationBar(
         modifier = Modifier
             .fillMaxWidth()
             .then(modifier),
-    ) {
+    ) { contentPadding ->
         Row(
             modifier = Modifier
                 .padding(
-                    start = MainTheme.spacings.quadruple,
-                    top = MainTheme.spacings.default,
-                    end = MainTheme.spacings.quadruple,
-                    bottom = MainTheme.spacings.double,
+                    start = BoltTheme.spacings.quadruple,
+                    top = BoltTheme.spacings.default,
+                    end = BoltTheme.spacings.quadruple,
+                    bottom = BoltTheme.spacings.double,
                 )
+                .padding(contentPadding)
                 .fillMaxWidth(),
             horizontalArrangement = getHorizontalArrangement(state),
         ) {
@@ -46,6 +45,7 @@ fun WizardNavigationBar(
                     text = backButtonText,
                     onClick = onBackClick,
                     enabled = state.isBackEnabled,
+                    modifier = Modifier.testTag("account_setup_back_button"),
                 )
             }
             if (state.showNext) {
@@ -53,6 +53,7 @@ fun WizardNavigationBar(
                     text = nextButtonText,
                     onClick = onNextClick,
                     enabled = state.isNextEnabled,
+                    modifier = Modifier.testTag(AccountCommonTestTags.TEST_TAG_BTN_ACCOUNT_SETUP_NEXT),
                 )
             }
         }
@@ -66,70 +67,5 @@ private fun getHorizontalArrangement(state: WizardNavigationBarState): Arrangeme
         Arrangement.End
     } else {
         Arrangement.Start
-    }
-}
-
-@PreviewDevices
-@Composable
-internal fun WizardNavigationBarK9Preview() {
-    K9Theme {
-        WizardNavigationBar(
-            onNextClick = {},
-            onBackClick = {},
-        )
-    }
-}
-
-@PreviewDevices
-@Composable
-internal fun WizardNavigationBarPreview() {
-    PreviewWithThemes {
-        WizardNavigationBar(
-            onNextClick = {},
-            onBackClick = {},
-        )
-    }
-}
-
-@PreviewDevices
-@Composable
-internal fun WizardNavigationBarDisabledPreview() {
-    PreviewWithThemes {
-        WizardNavigationBar(
-            onNextClick = {},
-            onBackClick = {},
-            state = WizardNavigationBarState(
-                isNextEnabled = false,
-                isBackEnabled = false,
-            ),
-        )
-    }
-}
-
-@PreviewDevices
-@Composable
-internal fun WizardNavigationBarHideNextPreview() {
-    PreviewWithThemes {
-        WizardNavigationBar(
-            onNextClick = {},
-            onBackClick = {},
-            state = WizardNavigationBarState(
-                showNext = false,
-            ),
-        )
-    }
-}
-
-@PreviewDevices
-@Composable
-internal fun WizardNavigationBarHideBackPreview() {
-    PreviewWithThemes {
-        WizardNavigationBar(
-            onNextClick = {},
-            onBackClick = {},
-            state = WizardNavigationBarState(
-                showBack = false,
-            ),
-        )
     }
 }

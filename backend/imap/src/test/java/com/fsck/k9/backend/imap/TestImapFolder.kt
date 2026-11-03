@@ -2,7 +2,7 @@ package com.fsck.k9.backend.imap
 
 import com.fsck.k9.mail.BodyFactory
 import com.fsck.k9.mail.FetchProfile
-import com.fsck.k9.mail.Flag
+import com.fsck.k9.mail.FolderType
 import com.fsck.k9.mail.Message
 import com.fsck.k9.mail.MessageRetrievalListener
 import com.fsck.k9.mail.Part
@@ -12,10 +12,14 @@ import com.fsck.k9.mail.store.imap.ImapMessage
 import com.fsck.k9.mail.store.imap.OpenMode
 import com.fsck.k9.mail.store.imap.createImapMessage
 import java.util.Date
+import net.thunderbird.core.common.mail.Flag
 
 open class TestImapFolder(override val serverId: String) : ImapFolder {
     override var mode: OpenMode? = null
         protected set
+
+    override val isOpen: Boolean
+        get() = mode != null
 
     override var messageCount: Int = 0
 
@@ -90,7 +94,7 @@ open class TestImapFolder(override val serverId: String) : ImapFolder {
         throw UnsupportedOperationException("not implemented")
     }
 
-    override fun fetch(
+    override suspend fun fetch(
         messages: List<ImapMessage>,
         fetchProfile: FetchProfile,
         listener: FetchListener?,
@@ -136,7 +140,7 @@ open class TestImapFolder(override val serverId: String) : ImapFolder {
         throw UnsupportedOperationException("not implemented")
     }
 
-    override fun setFlags(flags: Set<Flag>, value: Boolean) {
+    override fun setFlagsForAllMessages(flags: Set<Flag>, value: Boolean) {
         if (value) {
             for (messageFlagSet in messageFlags.values) {
                 messageFlagSet.addAll(flags)
@@ -168,12 +172,24 @@ open class TestImapFolder(override val serverId: String) : ImapFolder {
         throw UnsupportedOperationException("not implemented")
     }
 
+    override fun deleteMessages(messages: List<ImapMessage>) {
+        setFlags(messages, setOf(Flag.DELETED), true)
+    }
+
+    override fun deleteAllMessages() {
+        setFlagsForAllMessages(setOf(Flag.DELETED), true)
+    }
+
     override fun expunge() {
         mode = OpenMode.READ_WRITE
         wasExpunged = true
     }
 
     override fun expungeUids(uids: List<String>) {
+        throw UnsupportedOperationException("not implemented")
+    }
+
+    override fun create(folderType: FolderType): Boolean {
         throw UnsupportedOperationException("not implemented")
     }
 }

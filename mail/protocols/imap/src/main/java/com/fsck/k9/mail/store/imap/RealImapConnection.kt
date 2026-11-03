@@ -1,13 +1,11 @@
 package com.fsck.k9.mail.store.imap
 
-import com.fsck.k9.logging.Timber
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.Authentication
 import com.fsck.k9.mail.AuthenticationFailedException
 import com.fsck.k9.mail.CertificateValidationException
 import com.fsck.k9.mail.ConnectionSecurity
 import com.fsck.k9.mail.K9MailLib
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.MissingCapabilityException
 import com.fsck.k9.mail.NetworkTimeouts.SOCKET_CONNECT_TIMEOUT
 import com.fsck.k9.mail.NetworkTimeouts.SOCKET_READ_TIMEOUT
@@ -36,7 +34,11 @@ import java.util.regex.Pattern
 import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 import javax.net.ssl.SSLException
+import net.thunderbird.core.common.exception.MessagingException
+import net.thunderbird.legacy.logging.Log
 import org.apache.commons.io.IOUtils
+
+private const val TAG = "RealImapConnection"
 
 /**
  * A cacheable class that stores the details for a single IMAP connection.
@@ -45,6 +47,7 @@ internal class RealImapConnection(
     private val settings: ImapSettings,
     private val socketFactory: TrustedSocketFactory,
     private val oauthTokenProvider: OAuth2TokenProvider?,
+    private val folderNameCodec: FolderNameCodec,
     override val connectionGeneration: Int,
     private val socketConnectTimeout: Int = SOCKET_CONNECT_TIMEOUT,
     private val socketReadTimeout: Int = SOCKET_READ_TIMEOUT,
@@ -55,6 +58,7 @@ internal class RealImapConnection(
     private var responseParser: ImapResponseParser? = null
     private var nextCommandTag = 0
     private var capabilities = emptySet<String>()
+    private var enabled = emptySet<String>()
     private var stacktraceForClose: Exception? = null
     private var open = false
     private var retryOAuthWithNewToken = true
@@ -97,7 +101,8 @@ internal class RealImapConnection(
             extractOrRequestCapabilities(responses)
 
             enableCompressionIfRequested()
-            sendClientIdIfSupported()
+            sendClientInfoIfSupported()
+            enableCapabilitiesIfSupported()
 
             retrievePathPrefixIfNecessary()
             retrievePathDelimiterIfNecessary()
@@ -107,7 +112,7 @@ internal class RealImapConnection(
             throw MessagingException("Unable to open connection to IMAP server due to security error.", e)
         } finally {
             if (!authSuccess) {
-                Timber.e("Failed to login, closing connection for %s", logId)
+                Log.e(TAG, "Failed to login, closing connection for %s", logId)
                 close()
             }
         }
@@ -125,7 +130,8 @@ internal class RealImapConnection(
     @get:Synchronized
     override val isConnected: Boolean
         get() {
-            return inputStream != null && imapOutputStream != null &&
+            return inputStream != null &&
+                imapOutputStream != null &&
                 socket.let { socket ->
                     socket != null && socket.isConnected && !socket.isClosed
                 }
@@ -135,13 +141,13 @@ internal class RealImapConnection(
         try {
             Security.setProperty("networkaddress.cache.ttl", "0")
         } catch (e: Exception) {
-            Timber.w(e, "Could not set DNS ttl to 0 for %s", logId)
+            Log.w(TAG, e, "Could not set DNS ttl to 0 for %s", logId)
         }
 
         try {
             Security.setProperty("networkaddress.cache.negative.ttl", "0")
         } catch (e: Exception) {
-            Timber.w(e, "Could not set DNS negative ttl to 0 for %s", logId)
+            Log.w(TAG, e, "Could not set DNS negative ttl to 0 for %s", logId)
         }
     }
 
@@ -153,7 +159,7 @@ internal class RealImapConnection(
             connectException = try {
                 return connectToAddress(address)
             } catch (e: IOException) {
-                Timber.w(e, "Could not connect to %s", address)
+                Log.w(TAG, e, "Could not connect to %s", address)
                 e
             }
         }
@@ -167,7 +173,7 @@ internal class RealImapConnection(
         val clientCertificateAlias = settings.clientCertificateAlias
 
         if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
-            Timber.d("Connecting to %s as %s", host, address)
+            Log.d(TAG, "Connecting to %s as %s", host, address)
         }
 
         val socketAddress: SocketAddress = InetSocketAddress(address, port)
@@ -203,7 +209,7 @@ internal class RealImapConnection(
 
     private fun setUpStreamsAndParser(input: InputStream, output: OutputStream) {
         inputStream = PeekableInputStream(BufferedInputStream(input, BUFFER_SIZE))
-        responseParser = ImapResponseParser(inputStream)
+        responseParser = ImapResponseParser(inputStream, folderNameCodec)
         imapOutputStream = BufferedOutputStream(output, BUFFER_SIZE)
     }
 
@@ -213,7 +219,7 @@ internal class RealImapConnection(
         val initialResponse = responseParser.readResponse()
 
         if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
-            Timber.v("%s <<< %s", logId, initialResponse)
+            Log.v(TAG, "%s <<< %s", logId, initialResponse)
         }
 
         extractCapabilities(listOf(initialResponse))
@@ -223,7 +229,7 @@ internal class RealImapConnection(
         val capabilityResponse = CapabilityResponse.parse(responses) ?: return false
         val receivedCapabilities = capabilityResponse.capabilities
 
-        Timber.d("Saving %s capabilities for %s", receivedCapabilities, logId)
+        Log.d(TAG, "Saving %s capabilities for %s", receivedCapabilities, logId)
         capabilities = receivedCapabilities
 
         return true
@@ -231,7 +237,7 @@ internal class RealImapConnection(
 
     private fun extractOrRequestCapabilities(responses: List<ImapResponse>) {
         if (!extractCapabilities(responses)) {
-            Timber.i("Did not get capabilities in post-auth banner, requesting CAPABILITY for %s", logId)
+            Log.i(TAG, "Did not get capabilities in post-auth banner, requesting CAPABILITY for %s", logId)
             requestCapabilities()
         }
     }
@@ -240,7 +246,7 @@ internal class RealImapConnection(
         if (capabilities.isNotEmpty()) return
 
         if (K9MailLib.isDebug()) {
-            Timber.i("Did not get capabilities in banner, requesting CAPABILITY for %s", logId)
+            Log.i(TAG, "Did not get capabilities in banner, requesting CAPABILITY for %s", logId)
         }
 
         requestCapabilities()
@@ -251,6 +257,21 @@ internal class RealImapConnection(
 
         if (!extractCapabilities(responses)) {
             throw MessagingException("Invalid CAPABILITY response received")
+        }
+    }
+
+    private fun enableCapabilitiesIfSupported() {
+        if (!hasCapability(Capabilities.ENABLE)) {
+            return
+        }
+
+        try {
+            val responses = executeSimpleCommand(Commands.ENABLE)
+            val enabledResponse = EnabledResponse.parse(responses) ?: return
+            enabled = enabledResponse.capabilities
+            responseParser?.setUtf8Accepted(isUtf8AcceptCapable)
+        } catch (e: NegativeImapResponseException) {
+            Log.d(TAG, e, "Ignoring negative response to ENABLE command")
         }
     }
 
@@ -281,7 +302,7 @@ internal class RealImapConnection(
 
         // Per RFC 2595 (3.1):  Once TLS has been started, reissue CAPABILITY command
         if (K9MailLib.isDebug()) {
-            Timber.i("Updating capabilities after STARTTLS for %s", logId)
+            Log.i(TAG, "Updating capabilities after STARTTLS for %s", logId)
         }
 
         requestCapabilities()
@@ -302,6 +323,7 @@ internal class RealImapConnection(
                     throw MissingCapabilityException(Capabilities.AUTH_OAUTHBEARER)
                 }
             }
+
             AuthType.CRAM_MD5 -> {
                 if (hasCapability(Capabilities.AUTH_CRAM_MD5)) {
                     authCramMD5()
@@ -309,6 +331,7 @@ internal class RealImapConnection(
                     throw MissingCapabilityException(Capabilities.AUTH_CRAM_MD5)
                 }
             }
+
             AuthType.PLAIN -> {
                 if (hasCapability(Capabilities.AUTH_PLAIN)) {
                     saslAuthPlainWithLoginFallback()
@@ -318,6 +341,7 @@ internal class RealImapConnection(
                     throw MissingCapabilityException(Capabilities.AUTH_PLAIN)
                 }
             }
+
             AuthType.EXTERNAL -> {
                 if (hasCapability(Capabilities.AUTH_EXTERNAL)) {
                     saslAuthExternal()
@@ -325,6 +349,7 @@ internal class RealImapConnection(
                     throw MissingCapabilityException(Capabilities.AUTH_EXTERNAL)
                 }
             }
+
             else -> {
                 throw MessagingException("Unhandled authentication method found in the server settings (bug).")
             }
@@ -350,7 +375,7 @@ internal class RealImapConnection(
     }
 
     private fun handlePermanentOAuthFailure(e: NegativeImapResponseException): AuthenticationFailedException {
-        Timber.v(e, "Permanent failure during authentication using OAuth token")
+        Log.v(TAG, e, "Permanent failure during authentication using OAuth token")
 
         return AuthenticationFailedException(
             message = "Authentication failed",
@@ -366,14 +391,14 @@ internal class RealImapConnection(
         // We could avoid this if we had a reasonable chance of knowing
         // if a token was invalid before use (e.g. due to expiry). But we don't
         // This is the intended behaviour per AccountManager
-        Timber.v(e, "Temporary failure - retrying with new token")
+        Log.v(TAG, e, "Temporary failure - retrying with new token")
 
         return try {
             attemptOAuth(method)
         } catch (e2: NegativeImapResponseException) {
             // Okay, we failed on a new token.
             // Invalidate the token anyway but assume it's permanent.
-            Timber.v(e, "Authentication exception for new token, permanent error assumed")
+            Log.v(TAG, e, "Authentication exception for new token, permanent error assumed")
 
             oauthTokenProvider.invalidateToken()
 
@@ -388,9 +413,13 @@ internal class RealImapConnection(
         val token = oauthTokenProvider.getToken(OAuth2TokenProvider.OAUTH2_TIMEOUT.toLong())
 
         val authString = method.buildInitialClientResponse(settings.username, token)
-        val tag = sendSaslIrCommand(method.command, authString, true)
+        val tag = sendSaslIrCommand(command = method.command, initialClientResponse = authString, sensitive = true)
 
-        return responseParser.readStatusResponse(tag, method.command, logId, ::handleOAuthUntaggedResponse)
+        return responseParser.readStatusResponse(
+            tag,
+            method.command,
+            logId,
+        ) { handleOAuthUntaggedResponse(it) }
     }
 
     private fun handleOAuthUntaggedResponse(response: ImapResponse) {
@@ -453,10 +482,10 @@ internal class RealImapConnection(
         } catch (e: AuthenticationFailedException) {
             throw e
         } catch (e: IOException) {
-            Timber.d(e, "LOGIN fallback failed")
+            Log.d(TAG, e, "LOGIN fallback failed")
             throw originalException
         } catch (e: MessagingException) {
-            Timber.d(e, "LOGIN fallback failed")
+            Log.d(TAG, e, "LOGIN fallback failed")
             throw originalException
         }
     }
@@ -547,17 +576,17 @@ internal class RealImapConnection(
         }
     }
 
-    private fun sendClientIdIfSupported() {
-        val clientId = settings.clientId
+    private fun sendClientInfoIfSupported() {
+        val clientInfo = settings.clientInfo
 
-        if (hasCapability(Capabilities.ID) && clientId != null) {
-            val encodedAppName = ImapUtility.encodeString(clientId.appName)
-            val encodedAppVersion = ImapUtility.encodeString(clientId.appVersion)
+        if (hasCapability(Capabilities.ID) && clientInfo != null) {
+            val encodedAppName = ImapUtility.encodeString(clientInfo.appName)
+            val encodedAppVersion = ImapUtility.encodeString(clientInfo.appVersion)
 
             try {
                 executeSimpleCommand("""ID ("name" $encodedAppName "version" $encodedAppVersion)""")
             } catch (e: NegativeImapResponseException) {
-                Timber.d(e, "Ignoring negative response to ID command")
+                Log.d(TAG, e, "Ignoring negative response to ID command")
             }
         }
     }
@@ -566,7 +595,7 @@ internal class RealImapConnection(
         try {
             executeSimpleCommand(Commands.COMPRESS_DEFLATE)
         } catch (e: NegativeImapResponseException) {
-            Timber.d(e, "Unable to negotiate compression: ")
+            Log.d(TAG, e, "Unable to negotiate compression: ")
             return
         }
 
@@ -579,11 +608,11 @@ internal class RealImapConnection(
             setUpStreamsAndParser(input, output)
 
             if (K9MailLib.isDebug()) {
-                Timber.i("Compression enabled for %s", logId)
+                Log.i(TAG, "Compression enabled for %s", logId)
             }
         } catch (e: IOException) {
             close()
-            Timber.e(e, "Error enabling compression")
+            Log.e(TAG, e, "Error enabling compression")
         }
     }
 
@@ -592,13 +621,13 @@ internal class RealImapConnection(
 
         if (hasCapability(Capabilities.NAMESPACE)) {
             if (K9MailLib.isDebug()) {
-                Timber.i("pathPrefix is unset and server has NAMESPACE capability")
+                Log.i(TAG, "pathPrefix is unset and server has NAMESPACE capability")
             }
 
             handleNamespace()
         } else {
             if (K9MailLib.isDebug()) {
-                Timber.i("pathPrefix is unset but server does not have NAMESPACE capability")
+                Log.i(TAG, "pathPrefix is unset but server does not have NAMESPACE capability")
             }
 
             settings.pathPrefix = ""
@@ -615,7 +644,12 @@ internal class RealImapConnection(
         settings.setCombinedPrefix(null)
 
         if (K9MailLib.isDebug()) {
-            Timber.d("Got path '%s' and separator '%s'", namespaceResponse.prefix, namespaceResponse.hierarchyDelimiter)
+            Log.d(
+                TAG,
+                "Got path '%s' and separator '%s'",
+                namespaceResponse.prefix,
+                namespaceResponse.hierarchyDelimiter,
+            )
         }
     }
 
@@ -629,7 +663,7 @@ internal class RealImapConnection(
         val listResponses = try {
             executeSimpleCommand(Commands.LIST + " \"\" \"\"")
         } catch (e: NegativeImapResponseException) {
-            Timber.d(e, "Error getting path delimiter using LIST command")
+            Log.d(TAG, e, "Error getting path delimiter using LIST command")
             return
         }
 
@@ -641,7 +675,7 @@ internal class RealImapConnection(
                 settings.setCombinedPrefix(null)
 
                 if (K9MailLib.isDebug()) {
-                    Timber.d("Got path delimiter '%s' for %s", hierarchyDelimiter, logId)
+                    Log.d(TAG, "Got path delimiter '%s' for %s", hierarchyDelimiter, logId)
                 }
 
                 break
@@ -658,6 +692,10 @@ internal class RealImapConnection(
         return isListResponse && hierarchyDelimiterValid
     }
 
+    override fun canSendUTF8QuotedStrings(): Boolean {
+        return isUtf8AcceptCapable // later: or IMAP4Rev2 is enabled
+    }
+
     override fun hasCapability(capability: String): Boolean {
         if (!open) {
             open()
@@ -672,7 +710,7 @@ internal class RealImapConnection(
     override val isIdleCapable: Boolean
         get() {
             if (K9MailLib.isDebug()) {
-                Timber.v("Connection %s has %d capabilities", logId, capabilities.size)
+                Log.v(TAG, "Connection %s has %d capabilities", logId, capabilities.size)
             }
 
             return capabilities.contains(Capabilities.IDLE)
@@ -680,6 +718,9 @@ internal class RealImapConnection(
 
     override val isUidPlusCapable: Boolean
         get() = capabilities.contains(Capabilities.UID_PLUS)
+
+    override val isUtf8AcceptCapable: Boolean
+        get() = enabled.contains(Capabilities.UTF8_ACCEPT)
 
     @Synchronized
     override fun close() {
@@ -734,10 +775,10 @@ internal class RealImapConnection(
     ): List<ImapResponse> {
         val groupedIds = IdGrouper.groupIds(ids)
         val splitCommands = ImapCommandSplitter.splitCommand(
-            commandPrefix,
-            commandSuffix,
-            groupedIds,
-            lineLengthLimit,
+            prefix = commandPrefix,
+            suffix = commandSuffix,
+            groupedIds = groupedIds,
+            lengthLimit = lineLengthLimit,
         )
 
         return splitCommands.flatMap { splitCommand ->
@@ -760,9 +801,9 @@ internal class RealImapConnection(
 
             if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
                 if (sensitive && !K9MailLib.isDebugSensitive()) {
-                    Timber.v("%s>>> [Command Hidden, Enable Sensitive Debug Logging To Show]", logId)
+                    Log.v(TAG, "%s>>> [Command Hidden, Enable Sensitive Debug Logging To Show]", logId)
                 } else {
-                    Timber.v("%s>>> %s %s %s", logId, tag, command, initialClientResponse)
+                    Log.v(TAG, "%s>>> %s %s %s", logId, tag, command, initialClientResponse)
                 }
             }
 
@@ -792,9 +833,9 @@ internal class RealImapConnection(
 
             if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
                 if (sensitive && !K9MailLib.isDebugSensitive()) {
-                    Timber.v("%s>>> [Command Hidden, Enable Sensitive Debug Logging To Show]", logId)
+                    Log.v(TAG, "%s>>> [Command Hidden, Enable Sensitive Debug Logging To Show]", logId)
                 } else {
-                    Timber.v("%s>>> %s %s", logId, tag, command)
+                    Log.v(TAG, "%s>>> %s %s", logId, tag, command)
                 }
             }
 
@@ -811,15 +852,20 @@ internal class RealImapConnection(
     @Synchronized
     @Throws(IOException::class)
     override fun sendContinuation(continuation: String) {
-        val outputStream = checkNotNull(imapOutputStream)
+        try {
+            val outputStream = checkNotNull(imapOutputStream)
 
-        outputStream.write(continuation.toByteArray())
-        outputStream.write('\r'.code)
-        outputStream.write('\n'.code)
-        outputStream.flush()
+            outputStream.write(continuation.toByteArray())
+            outputStream.write('\r'.code)
+            outputStream.write('\n'.code)
+            outputStream.flush()
 
-        if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
-            Timber.v("%s>>> %s", logId, continuation)
+            if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
+                Log.v(TAG, "%s>>> %s", logId, continuation)
+            }
+        } catch (e: IOException) {
+            close()
+            throw e
         }
     }
 
@@ -836,7 +882,7 @@ internal class RealImapConnection(
             val response = responseParser.readResponse(callback)
 
             if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_IMAP) {
-                Timber.v("%s<<<%s", logId, response)
+                Log.v(TAG, "%s<<<%s", logId, response)
             }
 
             return response
@@ -856,7 +902,8 @@ internal class RealImapConnection(
                 if (responseTag.equals(tag, ignoreCase = true)) {
                     throw MessagingException("Command continuation aborted: $response")
                 } else {
-                    Timber.w(
+                    Log.w(
+                        TAG,
                         "After sending tag %s, got tag response from previous command %s for %s",
                         tag,
                         response,

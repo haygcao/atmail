@@ -1,31 +1,39 @@
 package app.k9mail.feature.account.server.validation.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.common.mvi.observeWithoutEffect
-import app.k9mail.core.ui.compose.designsystem.template.Scaffold
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.ThunderbirdTheme
 import app.k9mail.feature.account.common.ui.AppTitleTopHeader
 import app.k9mail.feature.account.common.ui.WizardNavigationBar
 import app.k9mail.feature.account.common.ui.WizardNavigationBarState
-import app.k9mail.feature.account.oauth.ui.preview.PreviewAccountOAuthViewModel
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.Event
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.ViewModel
-import app.k9mail.feature.account.server.validation.ui.fake.FakeIncomingServerValidationViewModel
-import app.k9mail.feature.account.server.validation.ui.fake.FakeOutgoingServerValidationViewModel
+import net.thunderbird.components.ui.bolt.template.Scaffold
+import net.thunderbird.core.common.provider.BrandNameProvider
+import net.thunderbird.core.ui.contract.mvi.observeWithoutEffect
 
 @Composable
 internal fun ServerValidationMainScreen(
     viewModel: ViewModel,
+    brandNameProvider: BrandNameProvider,
     modifier: Modifier = Modifier,
 ) {
     val (state, dispatch) = viewModel.observeWithoutEffect()
 
     Scaffold(
         topBar = {
-            AppTitleTopHeader()
+            AppTitleTopHeader(
+                title = brandNameProvider.brandName,
+                modifier = Modifier.windowInsetsPadding(
+                    WindowInsets.statusBars.union(WindowInsets.displayCutout),
+                ),
+            )
         },
         bottomBar = {
             WizardNavigationBar(
@@ -34,9 +42,10 @@ internal fun ServerValidationMainScreen(
                 state = WizardNavigationBarState(
                     showNext = false,
                 ),
+                modifier = Modifier.imePadding(),
             )
         },
-        modifier = modifier,
+        modifier = modifier.windowInsetsPadding(WindowInsets.navigationBars),
     ) { innerPadding ->
         ServerValidationContent(
             onEvent = { dispatch(it) },
@@ -44,54 +53,6 @@ internal fun ServerValidationMainScreen(
             isIncomingValidation = viewModel.isIncomingValidation,
             oAuthViewModel = viewModel.oAuthViewModel,
             contentPadding = innerPadding,
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun IncomingServerValidationScreenK9Preview() {
-    K9Theme {
-        ServerValidationMainScreen(
-            viewModel = FakeIncomingServerValidationViewModel(
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun IncomingServerValidationScreenThunderbirdPreview() {
-    ThunderbirdTheme {
-        ServerValidationMainScreen(
-            viewModel = FakeIncomingServerValidationViewModel(
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun AccountOutgoingValidationScreenK9Preview() {
-    K9Theme {
-        ServerValidationMainScreen(
-            viewModel = FakeOutgoingServerValidationViewModel(
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun AccountOutgoingValidationScreenThunderbirdPreview() {
-    ThunderbirdTheme {
-        ServerValidationMainScreen(
-            viewModel = FakeOutgoingServerValidationViewModel(
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
         )
     }
 }

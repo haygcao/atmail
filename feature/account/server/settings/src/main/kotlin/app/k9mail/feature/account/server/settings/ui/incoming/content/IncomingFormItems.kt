@@ -6,11 +6,8 @@ import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.res.stringResource
-import app.k9mail.core.ui.compose.designsystem.molecule.input.NumberInput
-import app.k9mail.core.ui.compose.designsystem.molecule.input.SelectInput
-import app.k9mail.core.ui.compose.designsystem.molecule.input.TextInput
-import app.k9mail.core.ui.compose.theme.MainTheme
 import app.k9mail.feature.account.common.domain.entity.ConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.IncomingProtocolType
 import app.k9mail.feature.account.common.domain.entity.InteractionMode
@@ -23,6 +20,10 @@ import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSett
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
 import app.k9mail.feature.account.server.settings.ui.incoming.allowedAuthenticationTypes
 import app.k9mail.feature.account.server.settings.ui.incoming.isPasswordFieldVisible
+import net.thunderbird.components.ui.bolt.molecule.input.NumberInput
+import net.thunderbird.components.ui.bolt.molecule.input.SelectInput
+import net.thunderbird.components.ui.bolt.molecule.input.TextInput
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Suppress("LongMethod")
 internal fun LazyListScope.incomingFormItems(
@@ -32,7 +33,7 @@ internal fun LazyListScope.incomingFormItems(
     resources: Resources,
 ) {
     item {
-        Spacer(modifier = Modifier.requiredHeight(MainTheme.sizes.smaller))
+        Spacer(modifier = Modifier.requiredHeight(BoltTheme.sizes.smaller))
     }
 
     if (mode == InteractionMode.Create) {
@@ -54,7 +55,7 @@ internal fun LazyListScope.incomingFormItems(
             onTextChange = { onEvent(Event.ServerChanged(it)) },
             label = stringResource(id = R.string.account_server_settings_server_label),
             contentPadding = defaultItemPadding(),
-            keyboardOptions = KeyboardOptions(autoCorrect = false),
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
         )
     }
 
@@ -97,7 +98,8 @@ internal fun LazyListScope.incomingFormItems(
             onTextChange = { onEvent(Event.UsernameChanged(it)) },
             label = stringResource(id = R.string.account_server_settings_username_label),
             contentPadding = defaultItemPadding(),
-            keyboardOptions = KeyboardOptions(autoCorrect = false),
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+            contentType = ContentType.Username + ContentType.EmailAddress,
         )
     }
 
@@ -124,5 +126,9 @@ internal fun LazyListScope.incomingFormItems(
 
     if (state.protocolType == IncomingProtocolType.IMAP) {
         imapFormItems(state, onEvent, resources)
+    }
+
+    item {
+        Spacer(modifier = Modifier.requiredHeight(BoltTheme.sizes.smaller))
     }
 }

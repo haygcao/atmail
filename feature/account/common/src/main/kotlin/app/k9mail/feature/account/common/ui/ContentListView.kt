@@ -11,18 +11,15 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextSubtitle1
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.PreviewWithThemes
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Composable
 fun ContentListView(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
-    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(MainTheme.spacings.default),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(BoltTheme.spacings.default),
     items: LazyListScope.() -> Unit,
 ) {
     ResponsiveWidthContainer(
@@ -30,33 +27,16 @@ fun ContentListView(
             .padding(contentPadding)
             .fillMaxWidth()
             .then(modifier),
-    ) {
+    ) { contentPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
+            contentPadding = contentPadding,
             horizontalAlignment = horizontalAlignment,
             verticalArrangement = verticalArrangement,
         ) {
             items()
-        }
-    }
-}
-
-@Preview
-@Composable
-internal fun ContentListViewPreview() {
-    PreviewWithThemes {
-        ContentListView {
-            item {
-                TextSubtitle1("Item 1")
-            }
-            item {
-                TextSubtitle1("Item 2")
-            }
-            item {
-                TextSubtitle1("Item 3")
-            }
         }
     }
 }

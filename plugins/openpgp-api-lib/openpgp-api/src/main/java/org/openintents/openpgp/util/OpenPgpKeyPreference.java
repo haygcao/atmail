@@ -30,6 +30,7 @@ import android.util.AttributeSet;
 import androidx.core.content.IntentCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.Preference;
+import net.thunderbird.legacy.logging.Log;
 import org.openintents.openpgp.OpenPgpApiManager;
 import org.openintents.openpgp.OpenPgpApiManager.OpenPgpApiManagerCallback;
 import org.openintents.openpgp.OpenPgpApiManager.OpenPgpProviderError;
@@ -38,7 +39,6 @@ import org.openintents.openpgp.OpenPgpError;
 import org.openintents.openpgp.R;
 import org.openintents.openpgp.util.OpenPgpApi.IOpenPgpCallback;
 import org.openintents.openpgp.util.OpenPgpUtils.UserId;
-import timber.log.Timber;
 
 
 public class OpenPgpKeyPreference extends Preference implements OpenPgpApiManagerCallback {
@@ -57,6 +57,8 @@ public class OpenPgpKeyPreference extends Preference implements OpenPgpApiManage
 
     private static final int REQUEST_CODE_API_MANAGER = 9998;
     private static final int REQUEST_CODE_KEY_PREFERENCE = 9999;
+
+    private static final String TAG = "OpenPgpKeyPreference";
 
     private static final int NO_KEY = 0;
 
@@ -171,7 +173,7 @@ public class OpenPgpKeyPreference extends Preference implements OpenPgpApiManage
                         OpenPgpApi.RESULT_ERROR,
                         OpenPgpError.class
                     );
-                    Timber.e("RESULT_CODE_ERROR: %s", error.getMessage());
+                    Log.e(TAG, "RESULT_CODE_ERROR: %s", error.getMessage());
 
                     break;
                 }
@@ -191,16 +193,15 @@ public class OpenPgpKeyPreference extends Preference implements OpenPgpApiManage
 
     private void apiStartPendingIntent() {
         if (pendingIntentSelectKey == null) {
-            Timber.e("Tried to launch pending intent but didn't have any?");
+            Log.e(TAG, "Tried to launch pending intent but didn't have any?");
             return;
         }
 
         try {
-            intentSenderFragment
-                    .startIntentSenderForResult(pendingIntentSelectKey.getIntentSender(), REQUEST_CODE_KEY_PREFERENCE,
-                    null, 0, 0, 0, null);
+            OpenPgpIntentStarter.startIntentSenderForResult(intentSenderFragment,
+                pendingIntentSelectKey.getIntentSender(), REQUEST_CODE_KEY_PREFERENCE);
         } catch (IntentSender.SendIntentException e) {
-            Timber.e(e,"Error launching pending intent");
+            Log.e(TAG, e,"Error launching pending intent");
         } finally {
             pendingIntentSelectKey = null;
         }
@@ -301,6 +302,7 @@ public class OpenPgpKeyPreference extends Preference implements OpenPgpApiManage
         return (long) a.getInteger(index, NO_KEY);
     }
 
+    @Deprecated
     @Override
     protected void onSetInitialValue(boolean restoreValue, Object defaultValue) {
         if (restoreValue) {

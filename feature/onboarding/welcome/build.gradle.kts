@@ -8,5 +8,11 @@ android {
 }
 
 dependencies {
-    implementation(projects.core.ui.compose.designsystem)
+    implementation(projects.core.common)
+    implementation(projects.feature.onboarding.migration.api)
+}
+
+codeCoverage {
+    branchCoverage = 0
+    lineCoverage = 0
 }

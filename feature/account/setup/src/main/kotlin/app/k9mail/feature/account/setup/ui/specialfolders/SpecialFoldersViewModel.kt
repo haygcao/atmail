@@ -1,8 +1,6 @@
 package app.k9mail.feature.account.setup.ui.specialfolders
 
 import androidx.lifecycle.viewModelScope
-import app.k9mail.core.common.domain.usecase.validation.ValidationResult
-import app.k9mail.core.ui.compose.common.mvi.BaseViewModel
 import app.k9mail.feature.account.common.domain.AccountDomainContract
 import app.k9mail.feature.account.common.domain.entity.SpecialFolderOptions
 import app.k9mail.feature.account.common.domain.entity.SpecialFolderSettings
@@ -13,11 +11,15 @@ import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.FormEvent
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.State
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.ViewModel
-import com.fsck.k9.logging.Timber
 import com.fsck.k9.mail.folders.FolderFetcherException
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.thunderbird.components.core.outcome.Outcome
+import net.thunderbird.core.ui.contract.mvi.BaseViewModel
+import net.thunderbird.legacy.logging.Log
+
+private const val TAG = "SpecialFoldersViewModel"
 
 class SpecialFoldersViewModel(
     private val formUiModel: SpecialFoldersContract.FormUiModel,
@@ -31,9 +33,7 @@ class SpecialFoldersViewModel(
     override fun event(event: Event) {
         when (event) {
             Event.LoadSpecialFolderOptions -> handleOneTimeEvent(event, ::onLoadSpecialFolderOptions)
-
             is FormEvent -> onFormEvent(event)
-
             Event.OnNextClicked -> onNextClicked()
             Event.OnBackClicked -> onBackClicked()
             Event.OnRetryClicked -> onRetryClicked()
@@ -60,7 +60,7 @@ class SpecialFoldersViewModel(
 
             val result = validateSpecialFolderOptions(specialFolderOptions)
             when (result) {
-                is ValidationResult.Failure -> {
+                is Outcome.Failure -> {
                     updateState {
                         it.copy(
                             isManualSetup = true,
@@ -70,7 +70,7 @@ class SpecialFoldersViewModel(
                     }
                 }
 
-                ValidationResult.Success -> {
+                is Outcome.Success<Unit> -> {
                     updateState {
                         it.copy(
                             isSuccess = true,
@@ -90,7 +90,7 @@ class SpecialFoldersViewModel(
         return try {
             getSpecialFolderOptions()
         } catch (exception: FolderFetcherException) {
-            Timber.e(exception, "Error while loading special folders")
+            Log.e(TAG, exception, "Error while loading special folders")
             updateState { state ->
                 state.copy(
                     isLoading = false,

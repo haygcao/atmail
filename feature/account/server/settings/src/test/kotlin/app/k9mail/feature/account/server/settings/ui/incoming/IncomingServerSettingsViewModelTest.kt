@@ -1,10 +1,8 @@
 package app.k9mail.feature.account.server.settings.ui.incoming
 
-import app.k9mail.core.common.domain.usecase.validation.ValidationError
-import app.k9mail.core.common.domain.usecase.validation.ValidationResult
-import app.k9mail.core.ui.compose.testing.MainDispatcherRule
 import app.k9mail.core.ui.compose.testing.mvi.assertThatAndMviTurbinesConsumed
 import app.k9mail.core.ui.compose.testing.mvi.eventStateTest
+import app.k9mail.core.ui.compose.testing.mvi.runMviTest
 import app.k9mail.core.ui.compose.testing.mvi.turbinesWithInitialStateCheck
 import app.k9mail.feature.account.common.data.InMemoryAccountStateRepository
 import app.k9mail.feature.account.common.domain.AccountDomainContract
@@ -16,28 +14,42 @@ import app.k9mail.feature.account.common.domain.entity.InteractionMode
 import app.k9mail.feature.account.common.domain.entity.MailConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.toImapDefaultPort
 import app.k9mail.feature.account.common.domain.entity.toPop3DefaultPort
-import app.k9mail.feature.account.common.domain.input.NumberInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.Effect
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.Event
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
-import app.k9mail.feature.account.server.settings.ui.incoming.fake.FakeIncomingServerSettingsValidator
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.store.imap.ImapStoreSettings
-import kotlinx.coroutines.test.runTest
-import org.junit.Rule
-import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import net.thunderbird.components.core.outcome.Outcome
+import net.thunderbird.components.ui.testing.coroutines.MainDispatcherHelper
+import net.thunderbird.core.validation.ValidationError
+import net.thunderbird.core.validation.input.NumberInputField
+import net.thunderbird.core.validation.input.StringInputField
 
 class IncomingServerSettingsViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mainDispatcher = MainDispatcherHelper(UnconfinedTestDispatcher())
+
+    @BeforeTest
+    fun setUp() {
+        mainDispatcher.setUp()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcher.tearDown()
+    }
 
     @Test
-    fun `should load account setup state when LoadAccountState event is received`() = runTest {
+    fun `should load account setup state when LoadAccountState event is received`() = runMviTest {
         val accountState = AccountState(
             emailAddress = "test@example.com",
             incomingServerSettings = ServerSettings(
@@ -53,7 +65,7 @@ class IncomingServerSettingsViewModelTest {
                     autoDetectNamespace = true,
                     pathPrefix = null,
                     useCompression = true,
-                    sendClientId = true,
+                    sendClientInfo = true,
                 ),
             ),
         )
@@ -85,16 +97,14 @@ class IncomingServerSettingsViewModelTest {
                     imapAutodetectNamespaceEnabled = true,
                     imapPrefix = StringInputField(value = ""),
                     imapUseCompression = true,
-                    imapSendClientId = true,
-
-                    isLoading = false,
+                    imapSendClientInfo = true,
                 ),
             )
         }
     }
 
     @Test
-    fun `should change protocol, security and port when ProtocolTypeChanged event is received`() = runTest {
+    fun `should change protocol, security and port when ProtocolTypeChanged event is received`() = runMviTest {
         val initialState = State(
             security = ConnectionSecurity.StartTLS,
             port = NumberInputField(value = ConnectionSecurity.StartTLS.toImapDefaultPort()),
@@ -110,24 +120,22 @@ class IncomingServerSettingsViewModelTest {
                 security = ConnectionSecurity.TLS,
                 port = NumberInputField(value = ConnectionSecurity.TLS.toPop3DefaultPort()),
             ),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ServerChanged event is received`() = runTest {
+    fun `should change state when ServerChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.ServerChanged("server"),
             expectedState = State(server = StringInputField(value = "server")),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change security and port when SecurityChanged event is received`() = runTest {
+    fun `should change security and port when SecurityChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
@@ -137,120 +145,110 @@ class IncomingServerSettingsViewModelTest {
                 security = ConnectionSecurity.StartTLS,
                 port = NumberInputField(value = ConnectionSecurity.StartTLS.toImapDefaultPort()),
             ),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when PortChanged event is received`() = runTest {
+    fun `should change state when PortChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.PortChanged(456L),
             expectedState = State(port = NumberInputField(value = 456L)),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change authentication type when AuthenticationTypeChanged event is received`() = runTest {
+    fun `should change authentication type when AuthenticationTypeChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.AuthenticationTypeChanged(AuthenticationType.PasswordEncrypted),
             expectedState = State(authenticationType = AuthenticationType.PasswordEncrypted),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when UsernameChanged event is received`() = runTest {
+    fun `should change state when UsernameChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.UsernameChanged("username"),
             expectedState = State(username = StringInputField(value = "username")),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when PasswordChanged event is received`() = runTest {
+    fun `should change state when PasswordChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.PasswordChanged("password"),
             expectedState = State(password = StringInputField(value = "password")),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ClientCertificateChanged event is received`() = runTest {
+    fun `should change state when ClientCertificateChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.ClientCertificateChanged("clientCertificate"),
             expectedState = State(clientCertificateAlias = "clientCertificate"),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ImapAutoDetectNamespaceChanged event is received`() = runTest {
+    fun `should change state when ImapAutoDetectNamespaceChanged event is received`() = runMviTest {
         val initialState = State(imapAutodetectNamespaceEnabled = true)
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = State(imapAutodetectNamespaceEnabled = true),
             event = Event.ImapAutoDetectNamespaceChanged(false),
             expectedState = State(imapAutodetectNamespaceEnabled = false),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ImapPrefixChanged event is received`() = runTest {
+    fun `should change state when ImapPrefixChanged event is received`() = runMviTest {
         val initialState = State()
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.ImapPrefixChanged("imapPrefix"),
             expectedState = State(imapPrefix = StringInputField(value = "imapPrefix")),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ImapUseCompressionChanged event is received`() = runTest {
+    fun `should change state when ImapUseCompressionChanged event is received`() = runMviTest {
         val initialState = State(imapUseCompression = true)
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
             event = Event.ImapUseCompressionChanged(false),
             expectedState = State(imapUseCompression = false),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ImapSendClientIdChanged event is received`() = runTest {
-        val initialState = State(imapSendClientId = true)
+    fun `should change state when ImapSendClientInfoChanged event is received`() = runMviTest {
+        val initialState = State(imapSendClientInfo = true)
         eventStateTest(
             viewModel = createTestSubject(initialState),
             initialState = initialState,
-            event = Event.ImapSendClientIdChanged(false),
-            expectedState = State(imapSendClientId = false),
-            coroutineScope = backgroundScope,
+            event = Event.ImapSendClientInfoChanged(false),
+            expectedState = State(imapSendClientInfo = false),
         )
     }
 
     @Test
-    fun `should save state emit effect NavigateNext when OnNextClicked is received and input valid`() = runTest {
+    fun `should save state emit effect NavigateNext when OnNextClicked is received and input valid`() = runMviTest {
         val initialState = State()
         val repository = InMemoryAccountStateRepository()
         val testSubject = createTestSubject(
@@ -284,11 +282,11 @@ class IncomingServerSettingsViewModelTest {
                     username = "",
                     password = "",
                     clientCertificateAlias = null,
-                    extra = mapOf(
-                        "autoDetectNamespace" to "true",
-                        "pathPrefix" to null,
-                        "useCompression" to "true",
-                        "sendClientId" to "true",
+                    extra = ImapStoreSettings.createExtra(
+                        autoDetectNamespace = true,
+                        pathPrefix = null,
+                        useCompression = true,
+                        sendClientInfo = true,
                     ),
                 ),
             ),
@@ -304,7 +302,7 @@ class IncomingServerSettingsViewModelTest {
 
     @Test
     fun `should save state and emit effect NavigateNext when OnNextClicked is received and input valid with OAuth`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 authenticationType = AuthenticationType.OAuth2,
             )
@@ -341,11 +339,11 @@ class IncomingServerSettingsViewModelTest {
                         username = "",
                         password = null,
                         clientCertificateAlias = null,
-                        extra = mapOf(
-                            "autoDetectNamespace" to "true",
-                            "pathPrefix" to null,
-                            "useCompression" to "true",
-                            "sendClientId" to "true",
+                        extra = ImapStoreSettings.createExtra(
+                            autoDetectNamespace = true,
+                            pathPrefix = null,
+                            useCompression = true,
+                            sendClientInfo = true,
                         ),
                     ),
                 ),
@@ -361,11 +359,11 @@ class IncomingServerSettingsViewModelTest {
 
     @Test
     fun `should change state and not emit NavigateNext effect when OnNextClicked event received and input invalid`() =
-        runTest {
+        runMviTest {
             val testSubject = IncomingServerSettingsViewModel(
                 mode = InteractionMode.Create,
                 validator = FakeIncomingServerSettingsValidator(
-                    serverAnswer = ValidationResult.Failure(TestError),
+                    serverAnswer = Outcome.Failure(TestError),
                 ),
                 accountStateRepository = InMemoryAccountStateRepository(),
             )
@@ -390,7 +388,7 @@ class IncomingServerSettingsViewModelTest {
         }
 
     @Test
-    fun `should emit NavigateBack effect when OnBackClicked event received`() = runTest {
+    fun `should emit NavigateBack effect when OnBackClicked event received`() = runMviTest {
         val testSubject = createTestSubject(State())
         val turbines = turbinesWithInitialStateCheck(testSubject, State())
 

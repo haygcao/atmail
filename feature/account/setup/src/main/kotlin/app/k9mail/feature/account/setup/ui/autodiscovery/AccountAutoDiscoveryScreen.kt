@@ -3,23 +3,22 @@ package app.k9mail.feature.account.setup.ui.autodiscovery
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import app.k9mail.autodiscovery.api.AutoDiscoveryResult
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevicesWithBackground
-import app.k9mail.core.ui.compose.common.mvi.observe
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.ThunderbirdTheme
-import app.k9mail.feature.account.common.ui.preview.PreviewAccountStateRepository
-import app.k9mail.feature.account.oauth.ui.preview.PreviewAccountOAuthViewModel
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.AutoDiscoveryUiResult
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.Effect
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.Event
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.ViewModel
+import net.thunderbird.components.ui.bolt.template.Scaffold
+import net.thunderbird.core.common.provider.BrandNameProvider
+import net.thunderbird.core.ui.contract.mvi.observe
 
 @Composable
 internal fun AccountAutoDiscoveryScreen(
     onNext: (AutoDiscoveryUiResult) -> Unit,
     onBack: () -> Unit,
+    onThundermailClick: () -> Unit,
+    onScanQrCodeClick: () -> Unit,
     viewModel: ViewModel,
+    brandNameProvider: BrandNameProvider,
     modifier: Modifier = Modifier,
 ) {
     val (state, dispatch) = viewModel.observe { effect ->
@@ -33,44 +32,17 @@ internal fun AccountAutoDiscoveryScreen(
         dispatch(Event.OnBackClicked)
     }
 
-    AccountAutoDiscoveryContent(
-        state = state.value,
-        onEvent = { dispatch(it) },
-        oAuthViewModel = viewModel.oAuthViewModel,
+    Scaffold(
         modifier = modifier,
-    )
-}
-
-@Composable
-@PreviewDevicesWithBackground
-internal fun AccountAutoDiscoveryScreenK9Preview() {
-    K9Theme {
-        AccountAutoDiscoveryScreen(
-            onNext = {},
-            onBack = {},
-            viewModel = AccountAutoDiscoveryViewModel(
-                validator = AccountAutoDiscoveryValidator(),
-                getAutoDiscovery = { AutoDiscoveryResult.NoUsableSettingsFound },
-                accountStateRepository = PreviewAccountStateRepository(),
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
-        )
-    }
-}
-
-@Composable
-@PreviewDevicesWithBackground
-internal fun AccountAutoDiscoveryScreenThunderbirdPreview() {
-    ThunderbirdTheme {
-        AccountAutoDiscoveryScreen(
-            onNext = { },
-            onBack = {},
-            viewModel = AccountAutoDiscoveryViewModel(
-                validator = AccountAutoDiscoveryValidator(),
-                getAutoDiscovery = { AutoDiscoveryResult.NoUsableSettingsFound },
-                accountStateRepository = PreviewAccountStateRepository(),
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
+    ) { innerPadding ->
+        AccountAutoDiscoveryContent(
+            state = state.value,
+            onEvent = { dispatch(it) },
+            onThundermailClick = onThundermailClick,
+            onScanQrCodeClick = onScanQrCodeClick,
+            oAuthViewModel = viewModel.oAuthViewModel,
+            brandName = brandNameProvider.brandName,
+            contentPadding = innerPadding,
         )
     }
 }

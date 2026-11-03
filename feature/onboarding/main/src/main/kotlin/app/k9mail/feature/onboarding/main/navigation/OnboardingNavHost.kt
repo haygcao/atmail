@@ -10,16 +10,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.k9mail.feature.account.setup.navigation.AccountSetupNavHost
-import app.k9mail.feature.onboarding.permissions.domain.PermissionsDomainContract.UseCase.HasRuntimePermissions
+import app.k9mail.feature.account.setup.navigation.AccountSetupRoute
+import app.k9mail.feature.onboarding.migration.api.OnboardingMigrationManager
 import app.k9mail.feature.onboarding.permissions.ui.PermissionsScreen
 import app.k9mail.feature.onboarding.welcome.ui.WelcomeScreen
+import app.k9mail.feature.settings.import.ui.SettingsImportAction
 import app.k9mail.feature.settings.import.ui.SettingsImportScreen
 import org.koin.compose.koinInject
 
-private const val NESTED_NAVIGATION_ROUTE_WELCOME = "welcome"
+const val NESTED_NAVIGATION_ROUTE_WELCOME = "welcome"
+private const val NESTED_NAVIGATION_ROUTE_MIGRATION = "migration"
 private const val NESTED_NAVIGATION_ROUTE_ACCOUNT_SETUP = "account_setup"
 private const val NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT = "settings_import"
-private const val NESTED_NAVIGATION_ROUTE_PERMISSIONS = "permissions"
+private const val NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT_QR_CODE = "settings_import_qr_code"
+const val NESTED_NAVIGATION_ROUTE_PERMISSIONS = "permissions"
 
 private fun NavController.navigateToAccountSetup() {
     navigate(NESTED_NAVIGATION_ROUTE_ACCOUNT_SETUP)
@@ -27,6 +31,10 @@ private fun NavController.navigateToAccountSetup() {
 
 private fun NavController.navigateToSettingsImport() {
     navigate(NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT)
+}
+
+private fun NavController.navigateToSettingsImportQrCode() {
+    navigate(NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT_QR_CODE)
 }
 
 private fun NavController.navigateToPermissions() {
@@ -37,13 +45,18 @@ private fun NavController.navigateToPermissions() {
     }
 }
 
+@Suppress("LongMethod")
 @Composable
 fun OnboardingNavHost(
-    onFinish: (String?) -> Unit,
-    hasRuntimePermissions: HasRuntimePermissions = koinInject(),
+    onFinish: (OnboardingRoute) -> Unit,
+    onboardingMigrationManager: OnboardingMigrationManager = koinInject(),
 ) {
     val navController = rememberNavController()
     var accountUuid by rememberSaveable { mutableStateOf<String?>(null) }
+
+    fun onImportSuccess() {
+        navController.navigateToPermissions()
+    }
 
     NavHost(
         navController = navController,
@@ -51,41 +64,58 @@ fun OnboardingNavHost(
     ) {
         composable(route = NESTED_NAVIGATION_ROUTE_WELCOME) {
             WelcomeScreen(
-                onStartClick = { navController.navigateToAccountSetup() },
+                onStartClick = { onFinish(OnboardingRoute.ThundermailAddAccount) },
                 onImportClick = { navController.navigateToSettingsImport() },
+                appNameProvider = koinInject(),
+            )
+        }
+
+        composable(route = NESTED_NAVIGATION_ROUTE_MIGRATION) {
+            onboardingMigrationManager.OnboardingMigrationScreen(
+                onQrCodeScan = { navController.navigateToSettingsImportQrCode() },
+                onThundermailClick = { onFinish(OnboardingRoute.ThundermailSignIn) },
+                onAddAccount = { navController.navigateToAccountSetup() },
+                onImport = { navController.navigateToSettingsImport() },
             )
         }
 
         composable(route = NESTED_NAVIGATION_ROUTE_ACCOUNT_SETUP) {
             AccountSetupNavHost(
                 onBack = { navController.popBackStack() },
-                onFinish = { createdAccountUuid: String ->
-                    accountUuid = createdAccountUuid
-                    if (hasRuntimePermissions()) {
-                        navController.navigateToPermissions()
-                    } else {
-                        onFinish(createdAccountUuid)
+                onFinish = { route: AccountSetupRoute ->
+                    when (route) {
+                        is AccountSetupRoute.AccountSetup -> {
+                            navController.navigateToPermissions()
+                        }
+
+                        AccountSetupRoute.ThundermailScanQrCode -> onFinish(OnboardingRoute.ThundermailScanQrCode)
+
+                        AccountSetupRoute.ThundermailSignIn -> onFinish(OnboardingRoute.ThundermailSignIn)
                     }
                 },
+                skipToIncomingValidation = false,
             )
         }
 
         composable(route = NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT) {
             SettingsImportScreen(
-                onImportSuccess = {
-                    if (hasRuntimePermissions()) {
-                        navController.navigateToPermissions()
-                    } else {
-                        onFinish(null)
-                    }
-                },
+                action = SettingsImportAction.Overview,
+                onImportSuccess = ::onImportSuccess,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(route = NESTED_NAVIGATION_ROUTE_SETTINGS_IMPORT_QR_CODE) {
+            SettingsImportScreen(
+                action = SettingsImportAction.ScanQrCode,
+                onImportSuccess = ::onImportSuccess,
                 onBack = { navController.popBackStack() },
             )
         }
 
         composable(route = NESTED_NAVIGATION_ROUTE_PERMISSIONS) {
             PermissionsScreen(
-                onNext = { onFinish(accountUuid) },
+                onNext = { onFinish(OnboardingRoute.Onboarding(accountUuid)) },
             )
         }
     }

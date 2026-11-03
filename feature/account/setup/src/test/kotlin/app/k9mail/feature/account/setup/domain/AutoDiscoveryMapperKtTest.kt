@@ -6,8 +6,6 @@ import app.k9mail.autodiscovery.api.ImapServerSettings
 import app.k9mail.autodiscovery.api.IncomingServerSettings
 import app.k9mail.autodiscovery.api.OutgoingServerSettings
 import app.k9mail.autodiscovery.api.SmtpServerSettings
-import app.k9mail.core.common.net.Hostname
-import app.k9mail.core.common.net.Port
 import app.k9mail.feature.account.common.domain.entity.MailConnectionSecurity
 import assertk.assertThat
 import assertk.assertions.isEqualTo
@@ -15,6 +13,8 @@ import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.store.imap.ImapStoreSettings
 import kotlin.test.assertFailsWith
+import net.thunderbird.core.common.net.Hostname
+import net.thunderbird.core.common.net.Port
 import org.junit.Test
 
 class AutoDiscoveryMapperKtTest {
@@ -46,7 +46,7 @@ class AutoDiscoveryMapperKtTest {
                     autoDetectNamespace = true,
                     pathPrefix = null,
                     useCompression = true,
-                    sendClientId = true,
+                    sendClientInfo = true,
                 ),
             ),
         )

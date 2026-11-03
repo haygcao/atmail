@@ -12,23 +12,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextSubtitle1
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.PreviewWithThemes
 import app.k9mail.feature.account.common.ui.item.ErrorItem
 import app.k9mail.feature.account.common.ui.item.ListItem
 import app.k9mail.feature.account.common.ui.item.LoadingItem
 import app.k9mail.feature.account.oauth.ui.AccountOAuthContract
 import app.k9mail.feature.account.oauth.ui.AccountOAuthView
-import app.k9mail.feature.account.oauth.ui.preview.PreviewAccountOAuthViewModel
 import app.k9mail.feature.account.server.validation.R
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.Event
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.State
+import net.thunderbird.components.ui.bolt.atom.text.TextTitleMedium
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Suppress("LongMethod", "ViewModelForwarding")
 @Composable
@@ -40,7 +37,7 @@ internal fun ServerValidationContent(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
 
     ResponsiveWidthContainer(
         modifier = Modifier
@@ -48,13 +45,14 @@ internal fun ServerValidationContent(
             .padding(contentPadding)
             .fillMaxWidth()
             .then(modifier),
-    ) {
+    ) { contentPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
+            contentPadding = contentPadding,
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.double, Alignment.CenterVertically),
+            verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.double, Alignment.CenterVertically),
         ) {
             if (state.error != null) {
                 item(key = "error") {
@@ -91,12 +89,12 @@ internal fun ServerValidationContent(
                                 .fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            TextSubtitle1(
+                            TextTitleMedium(
                                 text = stringResource(
                                     id = R.string.account_server_validation_sign_in,
                                 ),
                             )
-                            Spacer(modifier = Modifier.padding(MainTheme.spacings.default))
+                            Spacer(modifier = Modifier.padding(BoltTheme.spacings.default))
                             AccountOAuthView(
                                 onOAuthResult = { result -> onEvent(Event.OnOAuthResult(result)) },
                                 viewModel = oAuthViewModel,
@@ -118,33 +116,5 @@ internal fun ServerValidationContent(
                 }
             }
         }
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun IncomingServerValidationContentPreview() {
-    PreviewWithThemes {
-        ServerValidationContent(
-            onEvent = { },
-            state = State(),
-            isIncomingValidation = true,
-            oAuthViewModel = PreviewAccountOAuthViewModel(),
-            contentPadding = PaddingValues(),
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun OutgoingServerValidationContentPreview() {
-    PreviewWithThemes {
-        ServerValidationContent(
-            onEvent = { },
-            state = State(),
-            isIncomingValidation = false,
-            oAuthViewModel = PreviewAccountOAuthViewModel(),
-            contentPadding = PaddingValues(),
-        )
     }
 }

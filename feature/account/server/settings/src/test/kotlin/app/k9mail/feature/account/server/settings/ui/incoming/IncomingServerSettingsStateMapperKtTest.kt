@@ -5,22 +5,25 @@ import app.k9mail.feature.account.common.domain.entity.AuthenticationType
 import app.k9mail.feature.account.common.domain.entity.ConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.IncomingProtocolType
 import app.k9mail.feature.account.common.domain.entity.MailConnectionSecurity
-import app.k9mail.feature.account.common.domain.input.NumberInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
+import app.k9mail.feature.account.server.settings.ui.common.toInvalidEmailDomain
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.store.imap.ImapStoreSettings
+import net.thunderbird.core.validation.input.NumberInputField
+import net.thunderbird.core.validation.input.StringInputField
 import org.junit.Test
 
 class IncomingServerSettingsStateMapperKtTest {
 
+    @Suppress("MaxLineLength")
     @Test
-    fun `should map to state with email as username when server settings are null`() {
+    fun `should map to state with email as username and emailDomain With dot prefix as server name when server settings are null`() {
+        val email = "test@example.com"
         val accountState = AccountState(
-            emailAddress = "test@example.com",
+            emailAddress = email,
             incomingServerSettings = null,
         )
 
@@ -28,8 +31,26 @@ class IncomingServerSettingsStateMapperKtTest {
 
         assertThat(result).isEqualTo(
             State(
-                username = StringInputField(value = "test@example.com"),
-                isLoading = false,
+                username = StringInputField(value = email),
+                server = StringInputField(value = email.toInvalidEmailDomain()),
+            ),
+        )
+    }
+
+    @Test
+    fun `should map to default state when incoming server settings use an unsupported protocol`() {
+        val email = "test@example.com"
+        val accountState = AccountState(
+            emailAddress = email,
+            incomingServerSettings = DEMO_SERVER_SETTINGS,
+        )
+
+        val result = accountState.toIncomingServerSettingsState()
+
+        assertThat(result).isEqualTo(
+            State(
+                username = StringInputField(value = email),
+                server = StringInputField(value = email.toInvalidEmailDomain()),
             ),
         )
     }
@@ -42,7 +63,7 @@ class IncomingServerSettingsStateMapperKtTest {
 
         val result = serverSettings.toIncomingServerSettingsState()
 
-        assertThat(result).isEqualTo(INCOMING_IMAP_STATE.copy(isLoading = false))
+        assertThat(result).isEqualTo(INCOMING_IMAP_STATE)
     }
 
     @Test
@@ -67,7 +88,7 @@ class IncomingServerSettingsStateMapperKtTest {
 
         val result = serverSettings.toIncomingServerSettingsState()
 
-        assertThat(result).isEqualTo(INCOMING_POP3_STATE.copy(isLoading = false))
+        assertThat(result).isEqualTo(INCOMING_POP3_STATE)
     }
 
     @Test
@@ -96,7 +117,7 @@ class IncomingServerSettingsStateMapperKtTest {
             imapAutodetectNamespaceEnabled = false,
             imapPrefix = StringInputField(value = "prefix"),
             imapUseCompression = true,
-            imapSendClientId = true,
+            imapSendClientInfo = true,
         )
 
         private val IMAP_SERVER_SETTINGS = ServerSettings(
@@ -112,7 +133,7 @@ class IncomingServerSettingsStateMapperKtTest {
                 autoDetectNamespace = false,
                 pathPrefix = "prefix",
                 useCompression = true,
-                sendClientId = true,
+                sendClientInfo = true,
             ),
         )
 
@@ -135,6 +156,17 @@ class IncomingServerSettingsStateMapperKtTest {
             authenticationType = AuthType.PLAIN,
             username = "user",
             password = "password",
+            clientCertificateAlias = null,
+        )
+
+        private val DEMO_SERVER_SETTINGS = ServerSettings(
+            type = "demo",
+            host = "irrelevant",
+            port = 23,
+            connectionSecurity = MailConnectionSecurity.SSL_TLS_REQUIRED,
+            authenticationType = AuthType.PLAIN,
+            username = "irrelevant",
+            password = "irrelevant",
             clientCertificateAlias = null,
         )
     }

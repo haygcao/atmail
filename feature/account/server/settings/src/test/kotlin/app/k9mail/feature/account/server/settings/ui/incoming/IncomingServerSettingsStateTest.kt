@@ -4,11 +4,11 @@ import app.k9mail.feature.account.common.domain.entity.AuthenticationType
 import app.k9mail.feature.account.common.domain.entity.ConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.IncomingProtocolType
 import app.k9mail.feature.account.common.domain.entity.toImapDefaultPort
-import app.k9mail.feature.account.common.domain.input.NumberInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import net.thunderbird.core.validation.input.NumberInputField
+import net.thunderbird.core.validation.input.StringInputField
 import org.junit.Test
 
 class IncomingServerSettingsStateTest {
@@ -29,10 +29,7 @@ class IncomingServerSettingsStateTest {
                 clientCertificateAlias = null,
                 imapAutodetectNamespaceEnabled = true,
                 imapUseCompression = true,
-                imapSendClientId = true,
-
-                isLoading = true,
-                error = null,
+                imapSendClientInfo = true,
             ),
         )
     }

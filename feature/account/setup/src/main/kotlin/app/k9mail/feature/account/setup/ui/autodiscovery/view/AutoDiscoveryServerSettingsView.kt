@@ -9,24 +9,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.tooling.preview.Preview
 import app.k9mail.autodiscovery.api.ConnectionSecurity
-import app.k9mail.core.common.net.Hostname
-import app.k9mail.core.common.net.isIpAddress
-import app.k9mail.core.common.net.toHostname
-import app.k9mail.core.ui.compose.designsystem.atom.icon.Icon
-import app.k9mail.core.ui.compose.designsystem.atom.icon.Icons
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextBody1
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextBody2
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.PreviewWithThemes
 import app.k9mail.feature.account.setup.ui.autodiscovery.toAutoDiscoveryConnectionSecurityString
+import net.thunderbird.components.ui.bolt.atom.icon.Icon
+import net.thunderbird.components.ui.bolt.atom.icon.Icons
+import net.thunderbird.components.ui.bolt.atom.text.TextBodyLarge
+import net.thunderbird.components.ui.bolt.atom.text.TextBodyMedium
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
+import net.thunderbird.core.common.net.Hostname
+import net.thunderbird.core.common.net.isIpAddress
 
 @Composable
 internal fun AutoDiscoveryServerSettingsView(
@@ -38,12 +35,12 @@ internal fun AutoDiscoveryServerSettingsView(
     username: String = "",
     isIncoming: Boolean = true,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     Column(
-        verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.default),
+        verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.default),
         modifier = modifier,
     ) {
-        TextBody1(
+        TextBodyLarge(
             text = buildAnnotatedString {
                 append(if (isIncoming) "Incoming" else "Outgoing")
                 append(" ")
@@ -56,7 +53,7 @@ internal fun AutoDiscoveryServerSettingsView(
         )
 
         ServerSettingRow(
-            icon = if (isIncoming) Icons.Filled.inbox else Icons.Filled.outbox,
+            icon = if (isIncoming) Icons.Outlined.Inbox else Icons.Outlined.Outbox,
             text = buildAnnotatedString {
                 append("Server")
                 append(": ")
@@ -73,7 +70,7 @@ internal fun AutoDiscoveryServerSettingsView(
         )
 
         ServerSettingRow(
-            icon = Icons.Filled.security,
+            icon = Icons.Outlined.Security,
             text = buildAnnotatedString {
                 append("Security: ")
                 append(connectionSecurity.toAutoDiscoveryConnectionSecurityString(resources))
@@ -82,7 +79,7 @@ internal fun AutoDiscoveryServerSettingsView(
 
         if (username.isNotEmpty()) {
             ServerSettingRow(
-                icon = Icons.Filled.user,
+                icon = Icons.Outlined.AccountCircle,
                 text = buildAnnotatedString {
                     append("Username: ")
                     append(username)
@@ -108,66 +105,11 @@ private fun ServerSettingRow(
         if (showIcon) {
             Icon(
                 imageVector = icon,
-                modifier = Modifier.padding(end = MainTheme.spacings.default),
+                modifier = Modifier.padding(end = BoltTheme.spacings.default),
             )
         }
-        TextBody2(
+        TextBodyMedium(
             text = text,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryServerSettingsViewPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryServerSettingsView(
-            protocolName = "IMAP",
-            serverHostname = "imap.example.com".toHostname(),
-            serverPort = 993,
-            connectionSecurity = ConnectionSecurity.TLS,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryServerSettingsViewOutgoingPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryServerSettingsView(
-            protocolName = "IMAP",
-            serverHostname = "imap.example.com".toHostname(),
-            serverPort = 993,
-            connectionSecurity = ConnectionSecurity.TLS,
-            isIncoming = false,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryServerSettingsViewWithUserPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryServerSettingsView(
-            protocolName = "IMAP",
-            serverHostname = "imap.example.com".toHostname(),
-            serverPort = 993,
-            connectionSecurity = ConnectionSecurity.TLS,
-            username = "username",
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryServerSettingsViewWithIpAddressPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryServerSettingsView(
-            protocolName = "IMAP",
-            serverHostname = "127.0.0.1".toHostname(),
-            serverPort = 993,
-            connectionSecurity = ConnectionSecurity.TLS,
-            username = "username",
         )
     }
 }

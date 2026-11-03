@@ -3,9 +3,11 @@ package net.thunderbird.cli.translation
 import net.thunderbird.cli.translation.net.Language
 import net.thunderbird.cli.translation.net.Translation
 import net.thunderbird.cli.translation.net.WeblateClient
+import net.thunderbird.cli.translation.net.WeblateConfig
 
 class LanguageCodeLoader(
-    private val client: WeblateClient = WeblateClient(),
+    config: WeblateConfig = WeblateConfig(),
+    private val client: WeblateClient = WeblateClient(config = config),
 ) {
     fun loadCurrentAndroidLanguageCodes(token: String, threshold: Double): List<String> {
         val languages = client.loadLanguages(token)
@@ -27,11 +29,6 @@ class LanguageCodeLoader(
         return languages.filter { it.translatedPercent >= threshold }
             .map {
                 languageCodeLookup[it.code] ?: throw IllegalArgumentException("Language code ${it.code} is not mapped")
-            }.map { fixLanguageCodeFormat(it) }
-            .sorted()
-    }
-
-    private fun fixLanguageCodeFormat(languageCode: String): String {
-        return if (languageCode.contains("-r")) languageCode.replace("-r", "_") else languageCode
+            }.sorted()
     }
 }

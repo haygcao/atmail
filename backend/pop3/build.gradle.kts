@@ -8,5 +8,14 @@ dependencies {
     api(projects.mail.protocols.pop3)
     api(projects.mail.protocols.smtp)
 
+    implementation(projects.core.common)
+    implementation(projects.feature.mail.folder.api)
+    implementation(projects.legacy.logging)
+
     testImplementation(projects.mail.testing)
+}
+
+codeCoverage {
+    branchCoverage = 0
+    lineCoverage = 0
 }

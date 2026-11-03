@@ -1,6 +1,5 @@
 package com.fsck.k9.mail.transport.smtp
 
-import com.fsck.k9.logging.Timber
 import com.fsck.k9.mail.Address
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.Authentication
@@ -10,7 +9,6 @@ import com.fsck.k9.mail.ConnectionSecurity
 import com.fsck.k9.mail.K9MailLib
 import com.fsck.k9.mail.Message
 import com.fsck.k9.mail.Message.RecipientType
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.MissingCapabilityException
 import com.fsck.k9.mail.NetworkTimeouts.SOCKET_CONNECT_TIMEOUT
 import com.fsck.k9.mail.NetworkTimeouts.SOCKET_READ_TIMEOUT
@@ -30,7 +28,6 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.IOException
 import java.io.OutputStream
-import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -38,13 +35,21 @@ import java.net.UnknownHostException
 import java.security.GeneralSecurityException
 import java.util.Locale
 import javax.net.ssl.SSLException
+import net.thunderbird.core.common.exception.MessagingException
+import net.thunderbird.legacy.logging.Log
 import org.apache.commons.io.IOUtils
 import org.jetbrains.annotations.VisibleForTesting
+
+private const val TAG = "SmtpTransport"
 
 private const val SOCKET_SEND_MESSAGE_READ_TIMEOUT = 5 * 60 * 1000 // 5 minutes
 
 private const val SMTP_CONTINUE_REQUEST = 334
 private const val SMTP_AUTHENTICATION_FAILURE_ERROR_CODE = 535
+
+// We use "ehlo.thunderbird.net" for privacy reasons,
+// see https://ehlo.thunderbird.net/
+public const val SMTP_HELLO_NAME = "ehlo.thunderbird.net"
 
 class SmtpTransport(
     serverSettings: ServerSettings,
@@ -64,6 +69,7 @@ class SmtpTransport(
     private var outputStream: OutputStream? = null
     private var responseParser: SmtpResponseParser? = null
     private var is8bitEncodingAllowed = false
+    private var areUnicodeAddressesAllowed = false
     private var isEnhancedStatusCodesProvided = false
     private var largestAcceptableMessage = 0
     private var retryOAuthWithNewToken = false
@@ -74,7 +80,7 @@ class SmtpTransport(
             get() = K9MailLib.isDebug()
 
         override fun log(throwable: Throwable?, message: String, vararg args: Any?) {
-            Timber.v(throwable, message, *args)
+            Log.v(TAG, throwable, message, *args)
         }
     }
 
@@ -100,10 +106,10 @@ class SmtpTransport(
 
             readGreeting()
 
-            val helloName = buildHostnameToReport()
-            var extensions = sendHello(helloName)
+            var extensions = sendHello(SMTP_HELLO_NAME)
 
             is8bitEncodingAllowed = extensions.containsKey("8BITMIME")
+            areUnicodeAddressesAllowed = extensions.containsKey("SMTPUTF8")
             isEnhancedStatusCodesProvided = extensions.containsKey("ENHANCEDSTATUSCODES")
             isPipeliningSupported = extensions.containsKey("PIPELINING")
 
@@ -123,7 +129,7 @@ class SmtpTransport(
                     outputStream = BufferedOutputStream(tlsSocket.getOutputStream(), 1024)
 
                     // Now resend the EHLO. Required by RFC2487 Sec. 5.2, and more specifically, Exim.
-                    extensions = sendHello(helloName)
+                    extensions = sendHello(SMTP_HELLO_NAME)
                     secureConnection = true
                 } else {
                     throw MissingCapabilityException("STARTTLS")
@@ -147,74 +153,47 @@ class SmtpTransport(
             }
             parseOptionalSizeValue(extensions["SIZE"])
 
-            if (
-                username.isNotEmpty() &&
-                (!password.isNullOrEmpty() || AuthType.EXTERNAL == authType || AuthType.XOAUTH2 == authType)
-            ) {
-                when (authType) {
-                    AuthType.LOGIN, AuthType.PLAIN -> {
-                        // try saslAuthPlain first, because it supports UTF-8 explicitly
-                        if (authPlainSupported) {
-                            saslAuthPlain()
-                        } else if (authLoginSupported) {
-                            saslAuthLogin()
-                        } else {
-                            throw MissingCapabilityException("AUTH PLAIN")
-                        }
+            when (authType) {
+                AuthType.NONE -> {
+                    // The outgoing server is configured to not use any authentication. So do nothing.
+                }
+
+                AuthType.PLAIN -> {
+                    // try saslAuthPlain first, because it supports UTF-8 explicitly
+                    if (authPlainSupported) {
+                        saslAuthPlain()
+                    } else if (authLoginSupported) {
+                        saslAuthLogin()
+                    } else {
+                        throw MissingCapabilityException("AUTH PLAIN")
                     }
-                    AuthType.CRAM_MD5 -> {
-                        if (authCramMD5Supported) {
-                            saslAuthCramMD5()
-                        } else {
-                            throw MissingCapabilityException("AUTH CRAM-MD5")
-                        }
+                }
+
+                AuthType.CRAM_MD5 -> {
+                    if (authCramMD5Supported) {
+                        saslAuthCramMD5()
+                    } else {
+                        throw MissingCapabilityException("AUTH CRAM-MD5")
                     }
-                    AuthType.XOAUTH2 -> {
-                        if (oauthTokenProvider == null) {
-                            throw MessagingException("No OAuth2TokenProvider available.")
-                        } else if (authOAuthBearerSupported) {
-                            saslOAuth(OAuthMethod.OAUTHBEARER)
-                        } else if (authXoauth2Supported) {
-                            saslOAuth(OAuthMethod.XOAUTH2)
-                        } else {
-                            throw MissingCapabilityException("AUTH OAUTHBEARER")
-                        }
+                }
+
+                AuthType.XOAUTH2 -> {
+                    if (oauthTokenProvider == null) {
+                        throw MessagingException("No OAuth2TokenProvider available.")
+                    } else if (authOAuthBearerSupported) {
+                        saslOAuth(OAuthMethod.OAUTHBEARER)
+                    } else if (authXoauth2Supported) {
+                        saslOAuth(OAuthMethod.XOAUTH2)
+                    } else {
+                        throw MissingCapabilityException("AUTH OAUTHBEARER")
                     }
-                    AuthType.EXTERNAL -> {
-                        if (authExternalSupported) {
-                            saslAuthExternal()
-                        } else {
-                            throw MissingCapabilityException("AUTH EXTERNAL")
-                        }
-                    }
-                    AuthType.AUTOMATIC -> {
-                        if (secureConnection) {
-                            // try saslAuthPlain first, because it supports UTF-8 explicitly
-                            if (authPlainSupported) {
-                                saslAuthPlain()
-                            } else if (authLoginSupported) {
-                                saslAuthLogin()
-                            } else if (authCramMD5Supported) {
-                                saslAuthCramMD5()
-                            } else {
-                                throw MissingCapabilityException("AUTH PLAIN")
-                            }
-                        } else {
-                            if (authCramMD5Supported) {
-                                saslAuthCramMD5()
-                            } else {
-                                // We refuse to insecurely transmit the password using the obsolete AUTOMATIC setting
-                                // because of the potential for a MITM attack. Affected users must choose a different
-                                // setting.
-                                throw MessagingException(
-                                    "Update your outgoing server authentication setting. " +
-                                        "AUTOMATIC authentication is unavailable.",
-                                )
-                            }
-                        }
-                    }
-                    else -> {
-                        throw MessagingException("Unhandled authentication method found in server settings (bug).")
+                }
+
+                AuthType.EXTERNAL -> {
+                    if (authExternalSupported) {
+                        saslAuthExternal()
+                    } else {
+                        throw MissingCapabilityException("AUTH EXTERNAL")
                     }
                 }
             }
@@ -246,7 +225,7 @@ class SmtpTransport(
             connectException = try {
                 return connectToAddress(address)
             } catch (e: IOException) {
-                Timber.w(e, "Could not connect to %s", address)
+                Log.w(TAG, e, "Could not connect to %s", address)
                 e
             }
         }
@@ -256,7 +235,7 @@ class SmtpTransport(
 
     private fun connectToAddress(address: InetAddress): Socket {
         if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_SMTP) {
-            Timber.d("Connecting to %s as %s", host, address)
+            Log.d(TAG, "Connecting to %s as %s", host, address)
         }
 
         val socketAddress = InetSocketAddress(address, port)
@@ -283,19 +262,7 @@ class SmtpTransport(
     private fun logResponse(smtpResponse: SmtpResponse, sensitive: Boolean = false) {
         if (K9MailLib.isDebug()) {
             val omitText = sensitive && !K9MailLib.isDebugSensitive()
-            Timber.v("%s", smtpResponse.toLogString(omitText, linePrefix = "SMTP <<< "))
-        }
-    }
-
-    private fun buildHostnameToReport(): String {
-        val localAddress = socket!!.localAddress
-
-        // We use local IP statically for privacy reasons,
-        // see https://github.com/thunderbird/thunderbird-android/pull/3798
-        return if (localAddress is Inet6Address) {
-            "[IPv6:::1]"
-        } else {
-            "[127.0.0.1]"
+            Log.v(TAG, "%s", smtpResponse.toLogString(omitText, linePrefix = "SMTP <<< "))
         }
     }
 
@@ -307,7 +274,7 @@ class SmtpTransport(
                 largestAcceptableMessage = size
             } else {
                 if (K9MailLib.isDebug() && K9MailLib.DEBUG_PROTOCOL_SMTP) {
-                    Timber.d("SIZE parameter is not a valid integer: %s", sizeParameter)
+                    Log.d(TAG, "SIZE parameter is not a valid integer: %s", sizeParameter)
                 }
             }
         }
@@ -335,13 +302,13 @@ class SmtpTransport(
             helloResponse.keywords
         } else {
             if (K9MailLib.isDebug()) {
-                Timber.v("Server doesn't support the EHLO command. Trying HELO...")
+                Log.v(TAG, "Server doesn't support the EHLO command. Trying HELO...")
             }
 
             try {
                 executeCommand("HELO %s", host)
             } catch (e: NegativeSmtpReplyException) {
-                Timber.w("Server doesn't support the HELO command. Continuing anyway.")
+                Log.w(TAG, "Server doesn't support the HELO command. Continuing anyway.")
             }
 
             emptyMap()
@@ -383,7 +350,12 @@ class SmtpTransport(
 
         var entireMessageSent = false
         try {
-            val mailFrom = constructSmtpMailFromCommand(message.from, is8bitEncodingAllowed)
+            val mailFrom =
+                constructSmtpMailFromCommand(
+                    message.from,
+                    is8bitEncodingAllowed,
+                    message.usesAnyUnicodeAddresses(),
+                )
             if (isPipeliningSupported) {
                 val pipelinedCommands = buildList {
                     add(mailFrom)
@@ -432,19 +404,20 @@ class SmtpTransport(
         }
     }
 
-    private fun constructSmtpMailFromCommand(from: Array<Address>, is8bitEncodingAllowed: Boolean): String {
+    private fun constructSmtpMailFromCommand(
+        from: Array<Address>,
+        is8bitEncodingAllowed: Boolean,
+        canUseSmtputf8: Boolean,
+    ): String {
         val fromAddress = from.first().address
-        return if (is8bitEncodingAllowed) {
-            String.format("MAIL FROM:<%s> BODY=8BITMIME", fromAddress)
-        } else {
-            Timber.d("Server does not support 8-bit transfer encoding")
-            String.format("MAIL FROM:<%s>", fromAddress)
-        }
+        val smtputf8 = if (areUnicodeAddressesAllowed && canUseSmtputf8) " SMTPUTF8" else ""
+        val eightbit = if (is8bitEncodingAllowed) " BODY=8BITMIME" else ""
+        return String.format(Locale.US, "MAIL FROM:<%s>%s%s", fromAddress, smtputf8, eightbit)
     }
 
     private fun ensureClosed() {
         if (inputStream != null || outputStream != null || socket != null || responseParser != null) {
-            Timber.w(RuntimeException(), "SmtpTransport was open when it was expected to be closed")
+            Log.w(TAG, RuntimeException(), "SmtpTransport was open when it was expected to be closed")
             close()
         }
     }
@@ -477,7 +450,7 @@ class SmtpTransport(
             } else {
                 "SMTP >>> $command"
             }
-            Timber.d(commandToLog)
+            Log.d(TAG, commandToLog)
         }
 
         // Important: Send command + CRLF using just one write() call. Using multiple calls might result in multiple
@@ -579,22 +552,70 @@ class SmtpTransport(
     }
 
     private fun saslOAuth(method: OAuthMethod) {
+        Log.d(TAG, "saslOAuth() called with: method = $method")
         retryOAuthWithNewToken = true
-        try {
-            attempOAuth(method, username)
-        } catch (negativeResponse: NegativeSmtpReplyException) {
-            if (negativeResponse.replyCode != SMTP_AUTHENTICATION_FAILURE_ERROR_CODE) {
-                throw negativeResponse
-            }
+        checkNotNull(oauthTokenProvider) { "No OAuth2TokenProvider available." }
 
-            oauthTokenProvider!!.invalidateToken()
+        val users = buildSet {
+            // add the given username to the list of users
+            add(username)
+            // add all the usernames we can fetch from the id_token to be used in case
+            // the given username fails to authenticate.
+            addAll(oauthTokenProvider.usernames)
+        }.toMutableSet()
+
+        val negativeResponses = authenticateUsers(users, method)
+
+        if (negativeResponses.isNotEmpty()) {
+            Log.w(TAG, "failed to authenticate with all discovered users.")
+            val (user, negativeResponse) = negativeResponses[username]?.let { username to it }
+                ?: negativeResponses.entries.first().toPair()
+
+            logger.log("invalidating current token")
+            oauthTokenProvider.invalidateToken()
 
             if (!retryOAuthWithNewToken) {
                 handlePermanentOAuthFailure(method, negativeResponse)
             } else {
-                handleTemporaryOAuthFailure(method, username, negativeResponse)
+                handleTemporaryOAuthFailure(
+                    method = method,
+                    username = user,
+                    negativeResponseFromOldToken = negativeResponse,
+                )
             }
         }
+    }
+
+    private fun authenticateUsers(
+        users: MutableSet<String>,
+        method: OAuthMethod,
+    ): MutableMap<String, NegativeSmtpReplyException> {
+        val negativeResponses = mutableMapOf<String, NegativeSmtpReplyException>()
+        val sensitiveLog = "*sensitive*"
+        logger.log("users = ${users.takeIf { K9MailLib.isDebugSensitive() } ?: "[${users.size} emails found]"}")
+
+        val iterator = users.iterator()
+        while (iterator.hasNext()) {
+            val user = iterator.next()
+            try {
+                logger.log(
+                    "trying to authenticate with user '${
+                        user.takeIf { K9MailLib.isDebugSensitive() } ?: sensitiveLog
+                    }'",
+                )
+                attempOAuth(method, user)
+                negativeResponses.clear()
+                break
+            } catch (negativeResponse: NegativeSmtpReplyException) {
+                Log.w(TAG, negativeResponse, "saslOAuth: failed to authenticate.")
+                if (negativeResponse.replyCode != SMTP_AUTHENTICATION_FAILURE_ERROR_CODE) {
+                    throw negativeResponse
+                }
+                iterator.remove()
+                negativeResponses += user to negativeResponse
+            }
+        }
+        return negativeResponses
     }
 
     private fun handlePermanentOAuthFailure(
@@ -615,7 +636,7 @@ class SmtpTransport(
     ) {
         // Token was invalid. We could avoid this double check if we had a reasonable chance of knowing if a token was
         // invalid before use (e.g. due to expiry). But we don't. This is the intended behaviour per AccountManager.
-        Timber.v(negativeResponseFromOldToken, "Authentication exception, re-trying with new token")
+        Log.v(TAG, negativeResponseFromOldToken, "Authentication exception, re-trying with new token")
 
         try {
             attempOAuth(method, username)
@@ -625,7 +646,7 @@ class SmtpTransport(
             }
 
             // Okay, we failed on a new token. Invalidate the token anyway but assume it's permanent.
-            Timber.v(negativeResponseFromNewToken, "Authentication exception for new token, permanent error assumed")
+            Log.v(TAG, negativeResponseFromNewToken, "Authentication exception for new token, permanent error assumed")
 
             oauthTokenProvider!!.invalidateToken()
             handlePermanentOAuthFailure(method, negativeResponseFromNewToken)
@@ -673,7 +694,7 @@ class SmtpTransport(
         try {
             open()
         } catch (e: Exception) {
-            Timber.e(e, "Error while checking server settings")
+            Log.e(TAG, e, "Error while checking server settings")
             throw e
         } finally {
             close()

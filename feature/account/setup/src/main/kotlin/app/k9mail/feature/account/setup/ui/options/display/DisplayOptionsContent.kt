@@ -1,7 +1,6 @@
 package app.k9mail.feature.account.setup.ui.options.display
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -14,54 +13,53 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextOverline
-import app.k9mail.core.ui.compose.designsystem.molecule.input.TextInput
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.ThunderbirdTheme
 import app.k9mail.feature.account.common.ui.AppTitleTopHeader
 import app.k9mail.feature.account.common.ui.item.defaultHeadlineItemPadding
 import app.k9mail.feature.account.common.ui.item.defaultItemPadding
 import app.k9mail.feature.account.setup.R
 import app.k9mail.feature.account.setup.ui.options.display.DisplayOptionsContract.Event
 import app.k9mail.feature.account.setup.ui.options.display.DisplayOptionsContract.State
+import net.thunderbird.components.ui.bolt.atom.text.TextLabelSmall
+import net.thunderbird.components.ui.bolt.molecule.input.TextInput
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
-@OptIn(ExperimentalLayoutApi::class)
 @Suppress("LongMethod")
 @Composable
 internal fun DisplayOptionsContent(
     state: State,
     onEvent: (Event) -> Unit,
     contentPadding: PaddingValues,
+    brandName: String,
     modifier: Modifier = Modifier,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
 
     ResponsiveWidthContainer(
-        modifier = Modifier
+        modifier = modifier
+            .fillMaxSize()
             .testTag("DisplayOptionsContent")
-            .consumeWindowInsets(contentPadding)
             .padding(contentPadding)
-            .then(modifier),
-    ) {
+            .consumeWindowInsets(contentPadding)
+            .imePadding(),
+    ) { responsiveWidthPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding(),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = responsiveWidthPadding,
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.default),
+            verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.default),
         ) {
             item {
-                AppTitleTopHeader()
+                AppTitleTopHeader(
+                    title = brandName,
+                )
             }
 
             item {
-                TextOverline(
+                TextLabelSmall(
                     text = stringResource(id = R.string.account_setup_options_section_display_options),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -76,6 +74,7 @@ internal fun DisplayOptionsContent(
                     onTextChange = { onEvent(Event.OnAccountNameChanged(it)) },
                     label = stringResource(id = R.string.account_setup_options_account_name_label),
                     contentPadding = defaultItemPadding(),
+                    modifier = Modifier.testTag("account_setup_display_options_account_name_input"),
                 )
             }
 
@@ -84,9 +83,10 @@ internal fun DisplayOptionsContent(
                     text = state.displayName.value,
                     errorMessage = state.displayName.error?.toResourceString(resources),
                     onTextChange = { onEvent(Event.OnDisplayNameChanged(it)) },
-                    label = stringResource(id = R.string.account_setup_options_display_name_label),
+                    label = stringResource(id = R.string.account_setup_options_your_name_label),
                     contentPadding = defaultItemPadding(),
                     isRequired = true,
+                    modifier = Modifier.testTag("account_setup_display_options_display_name_input"),
                 )
             }
 
@@ -98,36 +98,13 @@ internal fun DisplayOptionsContent(
                     label = stringResource(id = R.string.account_setup_options_email_signature_label),
                     contentPadding = defaultItemPadding(),
                     isSingleLine = false,
+                    modifier = Modifier.testTag("account_setup_display_options_signature_input"),
                 )
             }
 
             item {
-                Spacer(modifier = Modifier.requiredHeight(MainTheme.sizes.smaller))
+                Spacer(modifier = Modifier.requiredHeight(BoltTheme.sizes.smaller))
             }
         }
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-internal fun DisplayOptionsContentK9Preview() {
-    K9Theme {
-        DisplayOptionsContent(
-            state = State(),
-            onEvent = {},
-            contentPadding = PaddingValues(),
-        )
-    }
-}
-
-@Composable
-@Preview(showBackground = true)
-internal fun DisplayOptionsContentThunderbirdPreview() {
-    ThunderbirdTheme {
-        DisplayOptionsContent(
-            state = State(),
-            onEvent = {},
-            contentPadding = PaddingValues(),
-        )
     }
 }

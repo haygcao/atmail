@@ -3,13 +3,13 @@ package app.k9mail.feature.account.server.settings.ui.incoming.content
 import android.content.res.Resources
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.ui.res.stringResource
-import app.k9mail.core.ui.compose.designsystem.molecule.input.CheckboxInput
-import app.k9mail.core.ui.compose.designsystem.molecule.input.TextInput
 import app.k9mail.feature.account.common.ui.item.defaultItemPadding
 import app.k9mail.feature.account.server.settings.R
 import app.k9mail.feature.account.server.settings.ui.common.mapper.toResourceString
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.Event
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
+import net.thunderbird.components.ui.bolt.molecule.input.CheckboxInput
+import net.thunderbird.components.ui.bolt.molecule.input.TextInput
 
 internal fun LazyListScope.imapFormItems(
     state: State,
@@ -56,8 +56,8 @@ internal fun LazyListScope.imapFormItems(
     item {
         CheckboxInput(
             text = stringResource(R.string.account_server_settings_incoming_imap_send_client_info_label),
-            checked = state.imapSendClientId,
-            onCheckedChange = { onEvent(Event.ImapSendClientIdChanged(it)) },
+            checked = state.imapSendClientInfo,
+            onCheckedChange = { onEvent(Event.ImapSendClientInfoChanged(it)) },
             contentPadding = defaultItemPadding(),
         )
     }

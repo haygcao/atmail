@@ -1,18 +1,14 @@
 package app.k9mail.feature.account.setup.ui.autodiscovery
 
 import app.k9mail.autodiscovery.api.AutoDiscoveryResult
-import app.k9mail.core.common.domain.usecase.validation.ValidationError
-import app.k9mail.core.common.domain.usecase.validation.ValidationResult
-import app.k9mail.core.ui.compose.testing.MainDispatcherRule
 import app.k9mail.core.ui.compose.testing.mvi.assertThatAndMviTurbinesConsumed
 import app.k9mail.core.ui.compose.testing.mvi.eventStateTest
+import app.k9mail.core.ui.compose.testing.mvi.runMviTest
 import app.k9mail.core.ui.compose.testing.mvi.turbinesWithInitialStateCheck
 import app.k9mail.feature.account.common.data.InMemoryAccountStateRepository
 import app.k9mail.feature.account.common.domain.AccountDomainContract
 import app.k9mail.feature.account.common.domain.entity.AccountState
 import app.k9mail.feature.account.common.domain.entity.IncomingProtocolType
-import app.k9mail.feature.account.common.domain.input.BooleanInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
 import app.k9mail.feature.account.oauth.ui.fake.FakeAccountOAuthViewModel
 import app.k9mail.feature.account.setup.domain.entity.AutoDiscoverySettingsFixture
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.AutoDiscoveryUiResult
@@ -23,18 +19,35 @@ import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryCon
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract.State
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runTest
-import org.junit.Rule
-import org.junit.Test
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import net.thunderbird.components.core.outcome.Outcome
+import net.thunderbird.components.ui.testing.coroutines.MainDispatcherHelper
+import net.thunderbird.core.validation.ValidationError
+import net.thunderbird.core.validation.input.BooleanInputField
+import net.thunderbird.core.validation.input.StringInputField
 
 class AccountAutoDiscoveryViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mainDispatcher = MainDispatcherHelper(UnconfinedTestDispatcher())
+
+    @BeforeTest
+    fun setUp() {
+        mainDispatcher.setUp()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcher.tearDown()
+    }
 
     @Test
-    fun `should reset state when EmailAddressChanged event is received`() = runTest {
+    fun `should reset state when EmailAddressChanged event is received`() = runMviTest {
         val initialState = State(
             configStep = ConfigStep.PASSWORD,
             emailAddress = StringInputField(value = "email"),
@@ -51,12 +64,11 @@ class AccountAutoDiscoveryViewModelTest {
                 emailAddress = StringInputField(value = "email"),
                 password = StringInputField(),
             ),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when PasswordChanged event is received`() = runTest {
+    fun `should change state when PasswordChanged event is received`() = runMviTest {
         eventStateTest(
             viewModel = createTestSubject(),
             initialState = State(),
@@ -64,12 +76,11 @@ class AccountAutoDiscoveryViewModelTest {
             expectedState = State(
                 password = StringInputField(value = "password"),
             ),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
-    fun `should change state when ResultApprovalChanged event is received`() = runTest {
+    fun `should change state when ResultApprovalChanged event is received`() = runMviTest {
         eventStateTest(
             viewModel = createTestSubject(),
             initialState = State(),
@@ -77,13 +88,12 @@ class AccountAutoDiscoveryViewModelTest {
             expectedState = State(
                 configurationApproved = BooleanInputField(value = true),
             ),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
     fun `should change state to password when OnNextClicked event is received, input valid and discovery loaded`() =
-        runTest {
+        runMviTest {
             val autoDiscoverySettings = AutoDiscoverySettingsFixture.settings
             val initialState = State(
                 configStep = ConfigStep.EMAIL_ADDRESS,
@@ -132,7 +142,7 @@ class AccountAutoDiscoveryViewModelTest {
 
     @Test
     fun `should not change state when OnNextClicked event is received, input valid but discovery failed`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.EMAIL_ADDRESS,
                 emailAddress = StringInputField(value = "email"),
@@ -180,7 +190,7 @@ class AccountAutoDiscoveryViewModelTest {
 
     @Test
     fun `should reset error state and change to password step when OnNextClicked event received when having error`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.EMAIL_ADDRESS,
                 emailAddress = StringInputField(
@@ -203,45 +213,44 @@ class AccountAutoDiscoveryViewModelTest {
                     ),
                     error = null,
                 ),
-                coroutineScope = backgroundScope,
             )
         }
 
     @Test
-    fun `should not change config step to password when OnNextClicked event is received and input invalid`() = runTest {
-        val initialState = State(
-            configStep = ConfigStep.EMAIL_ADDRESS,
-            emailAddress = StringInputField(value = "invalid email"),
-        )
-        val testSubject = AccountAutoDiscoveryViewModel(
-            validator = FakeAccountAutoDiscoveryValidator(
-                emailAddressAnswer = ValidationResult.Failure(TestError),
-            ),
-            getAutoDiscovery = { AutoDiscoveryResult.NoUsableSettingsFound },
-            oAuthViewModel = FakeAccountOAuthViewModel(),
-            accountStateRepository = InMemoryAccountStateRepository(),
-            initialState = initialState,
-        )
-
-        eventStateTest(
-            viewModel = testSubject,
-            initialState = initialState,
-            event = Event.OnNextClicked,
-            expectedState = State(
+    fun `should not change config step to password when OnNextClicked event is received and input invalid`() =
+        runMviTest {
+            val initialState = State(
                 configStep = ConfigStep.EMAIL_ADDRESS,
-                emailAddress = StringInputField(
-                    value = "invalid email",
-                    error = TestError,
-                    isValid = false,
+                emailAddress = StringInputField(value = "invalid email"),
+            )
+            val testSubject = AccountAutoDiscoveryViewModel(
+                validator = FakeAccountAutoDiscoveryValidator(
+                    emailAddressAnswer = Outcome.Failure(TestError),
                 ),
-            ),
-            coroutineScope = backgroundScope,
-        )
-    }
+                getAutoDiscovery = { AutoDiscoveryResult.NoUsableSettingsFound },
+                oAuthViewModel = FakeAccountOAuthViewModel(),
+                accountStateRepository = InMemoryAccountStateRepository(),
+                initialState = initialState,
+            )
+
+            eventStateTest(
+                viewModel = testSubject,
+                initialState = initialState,
+                event = Event.OnNextClicked,
+                expectedState = State(
+                    configStep = ConfigStep.EMAIL_ADDRESS,
+                    emailAddress = StringInputField(
+                        value = "invalid email",
+                        error = TestError,
+                        isValid = false,
+                    ),
+                ),
+            )
+        }
 
     @Test
     fun `should save state and emit NavigateNext when OnNextClicked received in password step with valid input`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.PASSWORD,
                 emailAddress = StringInputField(value = "email"),
@@ -305,7 +314,7 @@ class AccountAutoDiscoveryViewModelTest {
 
     @Test
     fun `should not emit NavigateNext when OnNextClicked received in password step with invalid input`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.PASSWORD,
                 emailAddress = StringInputField(value = "email"),
@@ -313,7 +322,7 @@ class AccountAutoDiscoveryViewModelTest {
             )
             val viewModel = AccountAutoDiscoveryViewModel(
                 validator = FakeAccountAutoDiscoveryValidator(
-                    passwordAnswer = ValidationResult.Failure(TestError),
+                    passwordAnswer = Outcome.Failure(TestError),
                 ),
                 getAutoDiscovery = { AutoDiscoveryResult.NoUsableSettingsFound },
                 oAuthViewModel = FakeAccountOAuthViewModel(),
@@ -352,7 +361,7 @@ class AccountAutoDiscoveryViewModelTest {
         }
 
     @Test
-    fun `should emit NavigateBack effect when OnBackClicked event is received`() = runTest {
+    fun `should emit NavigateBack effect when OnBackClicked event is received`() = runMviTest {
         val testSubject = createTestSubject()
         val turbines = turbinesWithInitialStateCheck(testSubject, State())
 
@@ -368,7 +377,7 @@ class AccountAutoDiscoveryViewModelTest {
 
     @Test
     fun `should change config step to email address when OnBackClicked event is received in password config step`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.PASSWORD,
                 emailAddress = StringInputField(value = "email"),
@@ -394,7 +403,7 @@ class AccountAutoDiscoveryViewModelTest {
 
     @Test
     fun `should reset error state when OnBackClicked event received when having error and in email address step`() =
-        runTest {
+        runMviTest {
             val initialState = State(
                 configStep = ConfigStep.EMAIL_ADDRESS,
                 emailAddress = StringInputField(
@@ -417,12 +426,11 @@ class AccountAutoDiscoveryViewModelTest {
                     ),
                     error = null,
                 ),
-                coroutineScope = backgroundScope,
             )
         }
 
     @Test
-    fun `should emit NavigateNext effect when OnEditConfigurationClicked event is received`() = runTest {
+    fun `should emit NavigateNext effect when OnEditConfigurationClicked event is received`() = runMviTest {
         val initialState = State(
             autoDiscoverySettings = AutoDiscoverySettingsFixture.settings,
         )

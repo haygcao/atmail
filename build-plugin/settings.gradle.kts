@@ -1,16 +1,18 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
-        google()
-        mavenCentral()
     }
 }
 
 dependencyResolutionManagement {
+    @Suppress("UnstableApiUsage")
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
+    @Suppress("UnstableApiUsage")
     repositories {
+        gradlePluginPortal()
         google()
         mavenCentral()
-        gradlePluginPortal()
     }
 
     versionCatalogs.create("libs") {
@@ -19,3 +21,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "build-plugin"
+
+include(":plugin")

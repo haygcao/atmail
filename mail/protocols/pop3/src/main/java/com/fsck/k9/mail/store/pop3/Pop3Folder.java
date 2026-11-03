@@ -10,12 +10,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import com.fsck.k9.logging.Timber;
 import com.fsck.k9.mail.FetchProfile;
-import com.fsck.k9.mail.Flag;
+import net.thunderbird.core.common.mail.Flag;
 import com.fsck.k9.mail.K9MailLib;
 import com.fsck.k9.mail.MessageRetrievalListener;
-import com.fsck.k9.mail.MessagingException;
+import net.thunderbird.core.common.exception.MessagingException;
+import net.thunderbird.legacy.logging.Log;
+import org.jetbrains.annotations.NotNull;
 
 import static com.fsck.k9.mail.K9MailLib.DEBUG_PROTOCOL_POP3;
 import static com.fsck.k9.mail.store.pop3.Pop3Commands.*;
@@ -25,6 +26,8 @@ import static com.fsck.k9.mail.store.pop3.Pop3Commands.*;
  * POP3 only supports one folder, "Inbox". So the folder name is the ID here.
  */
 public class Pop3Folder {
+    private static final String TAG = "Pop3Folder";
+
     public static final String INBOX = "INBOX";
 
 
@@ -101,6 +104,7 @@ public class Pop3Folder {
         return messageCount;
     }
 
+    @NotNull
     public Pop3Message getMessage(String uid) {
         Pop3Message message = uidToMsgMap.get(uid);
         if (message == null) {
@@ -171,7 +175,7 @@ public class Pop3Folder {
                     // response = "+OK msgNum msgUid"
                     String[] uidParts = response.split(" +");
                     if (uidParts.length < 3 || !"+OK".equals(uidParts[0])) {
-                        Timber.e("ERR response: %s", response);
+                        Log.e(TAG, "ERR response: %s", response);
                         return;
                     }
                     String msgUid = uidParts[2];
@@ -231,7 +235,7 @@ public class Pop3Folder {
         for (String uid : uids) {
             if (uidToMsgMap.get(uid) == null) {
                 if (K9MailLib.isDebug() && DEBUG_PROTOCOL_POP3) {
-                    Timber.d("Need to index UID %s", uid);
+                    Log.d(TAG, "Need to index UID %s", uid);
                 }
                 unindexedUids.add(uid);
             }
@@ -258,7 +262,7 @@ public class Pop3Folder {
                 String msgUid = uidParts[1];
                 if (unindexedUids.contains(msgUid)) {
                     if (K9MailLib.isDebug() && DEBUG_PROTOCOL_POP3) {
-                        Timber.d("Got msgNum %d for UID %s", msgNum, msgUid);
+                        Log.d(TAG, "Got msgNum %d for UID %s", msgNum, msgUid);
                     }
 
                     Pop3Message message = uidToMsgMap.get(msgUid);
@@ -273,7 +277,7 @@ public class Pop3Folder {
 
     private void indexMessage(int msgNum, Pop3Message message) {
         if (K9MailLib.isDebug() && DEBUG_PROTOCOL_POP3) {
-            Timber.d("Adding index for UID %s to msgNum %d", message.getUid(), msgNum);
+            Log.d(TAG, "Adding index for UID %s to msgNum %d", message.getUid(), msgNum);
         }
         msgNumToMsgMap.put(msgNum, message);
         uidToMsgMap.put(message.getUid(), message);
@@ -415,7 +419,7 @@ public class Pop3Folder {
         if (lines != -1 && (!connection.isTopNotAdvertised() || connection.supportsTop())) {
             try {
                 if (K9MailLib.isDebug() && DEBUG_PROTOCOL_POP3 && !connection.supportsTop()) {
-                    Timber.d("This server doesn't support the CAPA command. " +
+                    Log.d(TAG, "This server doesn't support the CAPA command. " +
                           "Checking to see if the TOP command is supported nevertheless.");
                 }
 
@@ -430,7 +434,7 @@ public class Pop3Folder {
                     throw e;
                 } else {
                     if (K9MailLib.isDebug() && DEBUG_PROTOCOL_POP3) {
-                        Timber.d("The server really doesn't support the TOP " +
+                        Log.d(TAG, "The server really doesn't support the TOP " +
                               "command. Using RETR instead.");
                     }
 

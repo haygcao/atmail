@@ -9,19 +9,21 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.fsck.k9.logging.Timber;
 import com.fsck.k9.mail.Body;
 import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.Message;
-import com.fsck.k9.mail.MessagingException;
+import net.thunderbird.core.common.exception.MessagingException;
 import com.fsck.k9.mail.Multipart;
 import com.fsck.k9.mail.Part;
+import net.thunderbird.legacy.logging.Log;
 import org.apache.james.mime4j.codec.Base64InputStream;
 import org.apache.james.mime4j.codec.QuotedPrintableInputStream;
 import org.apache.james.mime4j.util.MimeUtil;
 
 
 public class MimeUtility {
+    private static final String TAG = "MimeUtility";
+
     public static String unfold(String s) {
         if (s == null) {
             return null;
@@ -55,7 +57,7 @@ public class MimeUtility {
      * </p>
      * <p>
      * Note: Parsing header parameters is not a very cheap operation. Prefer using {@code MimeParameterDecoder}
-     * directly over calling this method multiple times for extracting different parameters from the the same header.
+     * directly over calling this method multiple times for extracting different parameters from the same header.
      * </p>
      *
      * @param headerBody The header body.
@@ -159,7 +161,7 @@ public class MimeUtility {
                     }
                 };
             } else {
-                Timber.w("Unsupported encoding: %s", encoding);
+                Log.w(TAG, "Unsupported encoding: %s", encoding);
                 inputStream = rawInputStream;
             }
         } else {

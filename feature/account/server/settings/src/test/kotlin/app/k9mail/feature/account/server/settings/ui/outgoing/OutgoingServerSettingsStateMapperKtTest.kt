@@ -4,21 +4,24 @@ import app.k9mail.feature.account.common.domain.entity.AccountState
 import app.k9mail.feature.account.common.domain.entity.AuthenticationType
 import app.k9mail.feature.account.common.domain.entity.ConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.MailConnectionSecurity
-import app.k9mail.feature.account.common.domain.input.NumberInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
+import app.k9mail.feature.account.server.settings.ui.common.toInvalidEmailDomain
 import app.k9mail.feature.account.server.settings.ui.outgoing.OutgoingServerSettingsContract.State
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.ServerSettings
+import net.thunderbird.core.validation.input.NumberInputField
+import net.thunderbird.core.validation.input.StringInputField
 import org.junit.Test
 
 class OutgoingServerSettingsStateMapperKtTest {
 
+    @Suppress("MaxLineLength")
     @Test
-    fun `should map to state with email as username when server settings are null`() {
+    fun `should map to state with email as username and emailDomain With dot prefix as server name when server settings are null`() {
+        val email = "test@example.com"
         val accountState = AccountState(
-            emailAddress = "test@example.com",
+            emailAddress = email,
             outgoingServerSettings = null,
         )
 
@@ -26,16 +29,18 @@ class OutgoingServerSettingsStateMapperKtTest {
 
         assertThat(result).isEqualTo(
             State(
-                username = StringInputField(value = "test@example.com"),
-                isLoading = false,
+                username = StringInputField(value = email),
+                server = StringInputField(value = email.toInvalidEmailDomain()),
             ),
         )
     }
 
+    @Suppress("MaxLineLength")
     @Test
-    fun `should map to state with password from incomingServerSettings when outgoingServerSettings is null`() {
+    fun `should map to state with password from incomingServerSettings and emailDomain With dot prefix as server name when outgoingServerSettings is null`() {
+        val email = "test@domain.example"
         val accountState = AccountState(
-            emailAddress = "test@domain.example",
+            emailAddress = email,
             incomingServerSettings = IMAP_SERVER_SETTINGS,
             outgoingServerSettings = null,
         )
@@ -44,9 +49,48 @@ class OutgoingServerSettingsStateMapperKtTest {
 
         assertThat(result).isEqualTo(
             State(
-                username = StringInputField(value = "test@domain.example"),
+                username = StringInputField(value = email),
                 password = StringInputField(value = INCOMING_SERVER_PASSWORD),
-                isLoading = false,
+                server = StringInputField(value = email.toInvalidEmailDomain()),
+            ),
+        )
+    }
+
+    @Test
+    fun `should map to default state when outgoing server settings use an unsupported protocol`() {
+        val email = "test@example.com"
+        val accountState = AccountState(
+            emailAddress = email,
+            outgoingServerSettings = DEMO_SERVER_SETTINGS,
+        )
+
+        val result = accountState.toOutgoingServerSettingsState()
+
+        assertThat(result).isEqualTo(
+            State(
+                username = StringInputField(value = email),
+                password = StringInputField(value = ""),
+                server = StringInputField(value = email.toInvalidEmailDomain()),
+            ),
+        )
+    }
+
+    @Test
+    fun `should use password from incomingServerSettings when outgoing server settings use an unsupported protocol`() {
+        val email = "test@example.com"
+        val accountState = AccountState(
+            emailAddress = email,
+            incomingServerSettings = IMAP_SERVER_SETTINGS,
+            outgoingServerSettings = DEMO_SERVER_SETTINGS,
+        )
+
+        val result = accountState.toOutgoingServerSettingsState()
+
+        assertThat(result).isEqualTo(
+            State(
+                username = StringInputField(value = email),
+                password = StringInputField(value = INCOMING_SERVER_PASSWORD),
+                server = StringInputField(value = email.toInvalidEmailDomain()),
             ),
         )
     }
@@ -59,11 +103,11 @@ class OutgoingServerSettingsStateMapperKtTest {
 
         val result = accountState.toOutgoingServerSettingsState()
 
-        assertThat(result).isEqualTo(OUTGOING_STATE.copy(isLoading = false))
+        assertThat(result).isEqualTo(OUTGOING_STATE)
     }
 
     @Test
-    fun `should use password from incomingServerSettings when outgoingServerSettings contains no password`() {
+    fun `should use password from incomingServerSettings when outgoingServerSettings is missing a password`() {
         val accountState = AccountState(
             incomingServerSettings = IMAP_SERVER_SETTINGS,
             outgoingServerSettings = SMTP_SERVER_SETTINGS.copy(password = null),
@@ -74,7 +118,6 @@ class OutgoingServerSettingsStateMapperKtTest {
         assertThat(result).isEqualTo(
             OUTGOING_STATE.copy(
                 password = StringInputField(value = INCOMING_SERVER_PASSWORD),
-                isLoading = false,
             ),
         )
     }
@@ -90,7 +133,6 @@ class OutgoingServerSettingsStateMapperKtTest {
         assertThat(result).isEqualTo(
             OUTGOING_STATE.copy(
                 password = StringInputField(value = ""),
-                isLoading = false,
             ),
         )
     }
@@ -127,6 +169,17 @@ class OutgoingServerSettingsStateMapperKtTest {
             authenticationType = AuthType.PLAIN,
             username = "user",
             password = "password",
+            clientCertificateAlias = null,
+        )
+
+        private val DEMO_SERVER_SETTINGS = ServerSettings(
+            type = "demo",
+            host = "irrelevant",
+            port = 23,
+            connectionSecurity = MailConnectionSecurity.SSL_TLS_REQUIRED,
+            authenticationType = AuthType.PLAIN,
+            username = "irrelevant",
+            password = "irrelevant",
             clientCertificateAlias = null,
         )
 

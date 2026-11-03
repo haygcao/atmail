@@ -1,5 +1,6 @@
 package app.k9mail.feature.account.setup
 
+import app.k9mail.autodiscovery.api.AutoDiscovery
 import app.k9mail.autodiscovery.api.AutoDiscoveryRegistry
 import app.k9mail.autodiscovery.api.AutoDiscoveryService
 import app.k9mail.autodiscovery.service.RealAutoDiscoveryRegistry
@@ -13,6 +14,8 @@ import app.k9mail.feature.account.setup.domain.usecase.CreateAccount
 import app.k9mail.feature.account.setup.domain.usecase.GetAutoDiscovery
 import app.k9mail.feature.account.setup.domain.usecase.GetSpecialFolderOptions
 import app.k9mail.feature.account.setup.domain.usecase.ValidateSpecialFolderOptions
+import app.k9mail.feature.account.setup.navigation.AccountSetupNavigation
+import app.k9mail.feature.account.setup.navigation.DefaultAccountSetupNavigation
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryContract
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryValidator
 import app.k9mail.feature.account.setup.ui.autodiscovery.AccountAutoDiscoveryViewModel
@@ -27,8 +30,8 @@ import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersViewMode
 import com.fsck.k9.mail.folders.FolderFetcher
 import com.fsck.k9.mail.store.imap.ImapFolderFetcher
 import okhttp3.OkHttpClient
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -40,13 +43,18 @@ val featureAccountSetupModule: Module = module {
         featureAccountServerSettingsModule,
     )
 
+    single<AccountSetupNavigation> { DefaultAccountSetupNavigation() }
+
     single<OkHttpClient> {
         OkHttpClient()
     }
 
     single<AutoDiscoveryRegistry> {
-        RealAutoDiscoveryRegistry.createDefault(
-            okHttpClient = get(),
+        val extraAutoDiscoveries = get<List<AutoDiscovery>>(named("extraAutoDiscoveries"))
+        RealAutoDiscoveryRegistry(
+            autoDiscoveries = RealAutoDiscoveryRegistry.createDefaultAutoDiscoveries(
+                okHttpClient = get(),
+            ) + extraAutoDiscoveries,
         )
     }
 
@@ -85,8 +93,8 @@ val featureAccountSetupModule: Module = module {
         ImapFolderFetcher(
             trustedSocketFactory = get(),
             oAuth2TokenProviderFactory = get(),
-            clientIdAppName = get(named("ClientIdAppName")),
-            clientIdAppVersion = get(named("ClientIdAppVersion")),
+            clientInfoAppName = get(named("ClientInfoAppName")),
+            clientInfoAppVersion = get(named("ClientInfoAppVersion")),
         )
     }
 

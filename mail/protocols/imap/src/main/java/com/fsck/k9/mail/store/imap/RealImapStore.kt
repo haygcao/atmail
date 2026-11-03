@@ -1,22 +1,26 @@
 package com.fsck.k9.mail.store.imap
 
-import com.fsck.k9.logging.Timber
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.AuthenticationFailedException
 import com.fsck.k9.mail.ConnectionSecurity
-import com.fsck.k9.mail.Flag
 import com.fsck.k9.mail.FolderType
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.oauth.OAuth2TokenProvider
 import com.fsck.k9.mail.ssl.TrustedSocketFactory
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.autoDetectNamespace
-import com.fsck.k9.mail.store.imap.ImapStoreSettings.isSendClientId
+import com.fsck.k9.mail.store.imap.ImapStoreSettings.isSendClientInfo
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.isUseCompression
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.pathPrefix
 import java.io.IOException
 import java.util.Deque
 import java.util.LinkedList
+import net.thunderbird.core.common.exception.MessagingException
+import net.thunderbird.core.common.mail.Flag
+import net.thunderbird.legacy.logging.Log
+
+private const val TAG = "RealImapStore"
+
+private const val LAST_ASCII_CODE = 127
 
 internal open class RealImapStore(
     private val serverSettings: ServerSettings,
@@ -29,7 +33,11 @@ internal open class RealImapStore(
     private val host: String = checkNotNull(serverSettings.host)
 
     private var pathPrefix: String?
-    private var combinedPrefix: String? = null
+
+    private var _combinedPrefix: String? = null
+    override val combinedPrefix: String?
+        get() = _combinedPrefix ?: buildCombinedPrefix().also { _combinedPrefix = it }
+
     private var pathDelimiter: String? = null
 
     private val permanentFlagsIndex: MutableSet<Flag> = mutableSetOf()
@@ -57,12 +65,22 @@ internal open class RealImapStore(
         )
     }
 
-    override fun getCombinedPrefix(): String {
-        return combinedPrefix ?: buildCombinedPrefix().also { combinedPrefix = it }
+    override fun fetchImapPrefix() {
+        if (combinedPrefix != null) return
+
+        val connection = createImapConnection()
+        connection.open()
+        if (connection.hasCapability(Capabilities.NAMESPACE)) {
+            val responses = connection.executeSimpleCommand(Commands.NAMESPACE)
+            NamespaceResponse.parse(responses)?.let { response ->
+                pathPrefix = response.prefix
+                pathDelimiter = response.hierarchyDelimiter
+            }
+        }
     }
 
-    private fun buildCombinedPrefix(): String {
-        val pathPrefix = pathPrefix ?: return ""
+    private fun buildCombinedPrefix(): String? {
+        val pathPrefix = pathPrefix ?: return null
 
         val trimmedPathPrefix = pathPrefix.trim { it <= ' ' }
         val trimmedPathDelimiter = pathDelimiter?.trim { it <= ' ' }.orEmpty()
@@ -72,7 +90,7 @@ internal open class RealImapStore(
         } else if (trimmedPathPrefix.isNotEmpty()) {
             trimmedPathPrefix + trimmedPathDelimiter
         } else {
-            ""
+            null
         }
     }
 
@@ -116,15 +134,17 @@ internal open class RealImapStore(
             subscribedOnly -> {
                 "LSUB \"\" %s"
             }
+
             connection.supportsListExtended -> {
                 "LIST \"\" %s RETURN (SPECIAL-USE)"
             }
+
             else -> {
                 "LIST \"\" %s"
             }
         }
 
-        val encodedListPrefix = ImapUtility.encodeString(getCombinedPrefix() + "*")
+        val encodedListPrefix = ImapUtility.encodeString("${combinedPrefix.orEmpty()}*")
         val responses = connection.executeSimpleCommand(String.format(commandFormat, encodedListPrefix))
 
         val listResponses = if (subscribedOnly) {
@@ -139,7 +159,7 @@ internal open class RealImapStore(
 
             if (pathDelimiter == null) {
                 pathDelimiter = listResponse.hierarchyDelimiter
-                combinedPrefix = null
+                _combinedPrefix = null
             }
 
             if (RealImapFolder.INBOX.equals(serverId, ignoreCase = true)) {
@@ -154,7 +174,6 @@ internal open class RealImapStore(
             }
 
             val name = getFolderDisplayName(serverId)
-            val oldServerId = getOldServerId(serverId)
 
             val type = when {
                 listResponse.hasAttribute("\\Archive") -> FolderType.ARCHIVE
@@ -168,21 +187,30 @@ internal open class RealImapStore(
 
             val existingItem = folderMap[serverId]
             if (existingItem == null || existingItem.type == FolderType.REGULAR) {
-                folderMap[serverId] = FolderListItem(serverId, name, type, oldServerId)
+                folderMap[serverId] = FolderListItem(serverId, name, type, pathDelimiter)
             }
         }
 
         return buildList {
-            add(FolderListItem(RealImapFolder.INBOX, RealImapFolder.INBOX, FolderType.INBOX, RealImapFolder.INBOX))
+            add(FolderListItem(RealImapFolder.INBOX, RealImapFolder.INBOX, FolderType.INBOX, pathDelimiter))
             addAll(folderMap.values)
         }
     }
 
     private fun getFolderDisplayName(serverId: String): String {
         val decodedFolderName = try {
-            folderNameCodec.decode(serverId)
+            if (serverId.all { it.code <= LAST_ASCII_CODE }) {
+                folderNameCodec.decode(serverId)
+            } else {
+                serverId
+            }
         } catch (e: CharacterCodingException) {
-            Timber.w(e, "Folder name not correctly encoded with the UTF-7 variant as defined by RFC 3501: %s", serverId)
+            Log.w(
+                TAG,
+                e,
+                "Folder name not correctly encoded with the UTF-7 variant as defined by RFC 3501: %s",
+                serverId,
+            )
             serverId
         }
 
@@ -190,19 +218,8 @@ internal open class RealImapStore(
         return folderNameWithoutPrefix ?: decodedFolderName
     }
 
-    private fun getOldServerId(serverId: String): String? {
-        val decodedFolderName = try {
-            folderNameCodec.decode(serverId)
-        } catch (e: CharacterCodingException) {
-            // Previous versions of K-9 Mail ignored folders with invalid UTF-7 encoding
-            return null
-        }
-
-        return removePrefixFromFolderName(decodedFolderName)
-    }
-
     private fun removePrefixFromFolderName(folderName: String): String? {
-        val prefix = getCombinedPrefix()
+        val prefix = combinedPrefix.orEmpty()
         val prefixLength = prefix.length
         if (prefixLength == 0) {
             return folderName
@@ -226,7 +243,7 @@ internal open class RealImapStore(
             connection.open()
             connection.close()
         } catch (e: Exception) {
-            Timber.e(e, "Error while checking server settings")
+            Log.e(TAG, e, "Error while checking server settings")
             throw e
         }
     }
@@ -266,7 +283,7 @@ internal open class RealImapStore(
     }
 
     override fun closeAllConnections() {
-        Timber.v("ImapStore.closeAllConnections()")
+        Log.v(TAG, "ImapStore.closeAllConnections()")
 
         val connectionsToClose = synchronized(connections) {
             val connectionsToClose = connections.toList()
@@ -287,6 +304,7 @@ internal open class RealImapStore(
             StoreImapSettings(),
             trustedSocketFactory,
             oauthTokenProvider,
+            folderNameCodec,
             connectionGeneration,
         )
     }
@@ -309,7 +327,7 @@ internal open class RealImapStore(
 
         override val useCompression: Boolean = serverSettings.isUseCompression
 
-        override val clientId: ImapClientId? = config.clientId().takeIf { serverSettings.isSendClientId }
+        override val clientInfo: ImapClientInfo? = config.clientInfo().takeIf { serverSettings.isSendClientInfo }
 
         override var pathPrefix: String?
             get() = this@RealImapStore.pathPrefix
@@ -324,7 +342,7 @@ internal open class RealImapStore(
             }
 
         override fun setCombinedPrefix(prefix: String?) {
-            combinedPrefix = prefix
+            _combinedPrefix = prefix
         }
     }
 }

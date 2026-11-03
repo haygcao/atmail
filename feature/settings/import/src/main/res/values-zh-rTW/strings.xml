@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="settings_import_title">匯入設定</string>
-    <string name="settings_import_pick_document_button">選擇檔案</string>
+    <string name="settings_import_pick_document_button">選取檔案</string>
     <string name="settings_import_button">匯入</string>
     <string name="settings_import_success_generic">設定匯入成功</string>
     <!--Displayed after importing accounts when one or multiple accounts require entering a password-->
@@ -28,7 +28,7 @@
     <string name="settings_import_outgoing_server_password_hint">外寄伺服器密碼</string>
     <string name="settings_import_use_same_password_for_outgoing_server">外寄伺服器使用相同的密碼</string>
     <string name="settings_import_server_name_format">伺服器名稱：<xliff:g id="hostname">%s</xliff:g></string>
-    <string name="settings_import_oauth_description">如要透過 K-9 Mail 使用這個電子郵件帳號，您需要登入並授權應用程式取用您的電子郵件。</string>
+    <string name="settings_import_oauth_description">要使用此電子郵件帳戶，您需要登入並授權應用程式存取您的電子郵件。</string>
     <string name="settings_import_oauth_sign_in">登入</string>
     <string name="settings_import_oauth_sign_in_with_google">使用 Google 帳號登入</string>
     <string name="settings_import_oauth_error_oauth_flow_canceled">授權被取消</string>
@@ -36,4 +36,8 @@
     <string name="settings_import_oauth_error_oauth_not_supported">此供應商目前不支援 OAuth 2.0。</string>
     <string name="settings_import_oauth_error_browser_not_found">應用程式找不到瀏覽器以授予取用您賬戶的權限。</string>
     <string name="settings_import_general_settings_item">一般設定</string>
+    <string name="settings_import_pick_app_button">從應用程式匯入</string>
+    <string name="settings_import_pick_app_dialog_title">從應用程式匯入</string>
+    <string name="settings_import_scan_qr_code_button">掃描 QR Code</string>
+    <string name="settings_import_app_version_not_supported">應用程式不支援。</string>
 </resources>

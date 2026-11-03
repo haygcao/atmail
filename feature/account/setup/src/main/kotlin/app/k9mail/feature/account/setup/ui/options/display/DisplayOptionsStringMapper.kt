@@ -1,7 +1,6 @@
 package app.k9mail.feature.account.setup.ui.options.display
 
 import android.content.res.Resources
-import app.k9mail.core.common.domain.usecase.validation.ValidationError
 import app.k9mail.feature.account.setup.R
 import app.k9mail.feature.account.setup.domain.usecase.ValidateAccountName.ValidateAccountNameError
 import app.k9mail.feature.account.setup.domain.usecase.ValidateAccountName.ValidateAccountNameError.BlankAccountName
@@ -9,6 +8,7 @@ import app.k9mail.feature.account.setup.domain.usecase.ValidateDisplayName.Valid
 import app.k9mail.feature.account.setup.domain.usecase.ValidateDisplayName.ValidateDisplayNameError.EmptyDisplayName
 import app.k9mail.feature.account.setup.domain.usecase.ValidateEmailSignature.ValidateEmailSignatureError
 import app.k9mail.feature.account.setup.domain.usecase.ValidateEmailSignature.ValidateEmailSignatureError.BlankEmailSignature
+import net.thunderbird.core.validation.ValidationError
 
 internal fun ValidationError.toResourceString(resources: Resources): String {
     return when (this) {
@@ -27,7 +27,7 @@ private fun ValidateAccountNameError.toAccountNameErrorString(resources: Resourc
 
 private fun ValidateDisplayNameError.toDisplayNameErrorString(resources: Resources): String {
     return when (this) {
-        is EmptyDisplayName -> resources.getString(R.string.account_setup_options_display_name_error_required)
+        is EmptyDisplayName -> resources.getString(R.string.account_setup_options_your_name_error_required)
     }
 }
 

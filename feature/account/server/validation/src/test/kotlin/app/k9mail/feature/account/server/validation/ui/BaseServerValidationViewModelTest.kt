@@ -1,7 +1,7 @@
 package app.k9mail.feature.account.server.validation.ui
 
-import app.k9mail.core.ui.compose.testing.MainDispatcherRule
 import app.k9mail.core.ui.compose.testing.mvi.assertThatAndMviTurbinesConsumed
+import app.k9mail.core.ui.compose.testing.mvi.runMviTest
 import app.k9mail.core.ui.compose.testing.mvi.turbinesWithInitialStateCheck
 import app.k9mail.feature.account.common.data.InMemoryAccountStateRepository
 import app.k9mail.feature.account.common.domain.AccountDomainContract
@@ -23,18 +23,31 @@ import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.ConnectionSecurity
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.server.ServerSettingsValidationResult
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.runTest
-import org.junit.Rule
-import org.junit.Test
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import net.thunderbird.components.ui.testing.coroutines.MainDispatcherHelper
 
 abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewModel> {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mainDispatcher = MainDispatcherHelper(UnconfinedTestDispatcher())
+
+    @BeforeTest
+    fun setUp() {
+        mainDispatcher.setUp()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcher.tearDown()
+    }
 
     @Test
-    fun `should update state when LoadAccountStateAndValidate event received and validate`() = runTest {
+    fun `should update state when LoadAccountStateAndValidate event received and validate`() = runMviTest {
         val accountState = if (isIncomingValidation) {
             AccountState(
                 incomingServerSettings = SERVER_SETTINGS,
@@ -83,7 +96,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should fail when ValidateServerSettings event received and server settings null`() = runTest {
+    fun `should fail when ValidateServerSettings event received and server settings null`() = runMviTest {
         val initialState = State()
         val testSubject = createTestSubject()
         val turbines = turbinesWithInitialStateCheck(testSubject, initialState)
@@ -102,7 +115,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should validate server settings when ValidateServerSettings event received`() = runTest {
+    fun `should validate server settings when ValidateServerSettings event received`() = runMviTest {
         val initialState = State(
             serverSettings = SERVER_SETTINGS,
         )
@@ -132,7 +145,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should set error state when ValidateServerSettings received and check settings failed`() = runTest {
+    fun `should set error state when ValidateServerSettings received and check settings failed`() = runMviTest {
         val initialState = State(
             serverSettings = SERVER_SETTINGS,
         )
@@ -160,7 +173,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should emit effect NavigateNext when ValidateConfig is successful`() = runTest {
+    fun `should emit effect NavigateNext when ValidateConfig is successful`() = runMviTest {
         val initialState = State(
             serverSettings = SERVER_SETTINGS,
             isSuccess = true,
@@ -181,7 +194,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should emit NavigateBack effect when OnBackClicked event received`() = runTest {
+    fun `should emit NavigateBack effect when OnBackClicked event received`() = runMviTest {
         val testSubject = createTestSubject()
         val turbines = turbinesWithInitialStateCheck(testSubject, State())
 
@@ -196,7 +209,7 @@ abstract class BaseServerValidationViewModelTest<T : BaseServerValidationViewMod
     }
 
     @Test
-    fun `should clear error and trigger check settings when OnRetryClicked event received`() = runTest {
+    fun `should clear error and trigger check settings when OnRetryClicked event received`() = runMviTest {
         val initialState = State(
             serverSettings = SERVER_SETTINGS,
             error = Error.ServerError("server error"),

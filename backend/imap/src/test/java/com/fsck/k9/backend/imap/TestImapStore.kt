@@ -8,6 +8,9 @@ import com.fsck.k9.mail.store.imap.ImapStore
 class TestImapStore : ImapStore {
     private val folders = mutableMapOf<String, ImapFolder>()
 
+    override val combinedPrefix: String?
+        get() = throw UnsupportedOperationException("not implemented")
+
     fun addFolder(serverId: String): TestImapFolder {
         require(!folders.containsKey(serverId)) { "Folder '$serverId' already exists" }
 
@@ -33,7 +36,6 @@ class TestImapStore : ImapStore {
                 serverId = folder.serverId,
                 name = "irrelevant",
                 type = FolderType.REGULAR,
-                oldServerId = null,
             )
         }
     }
@@ -43,6 +45,10 @@ class TestImapStore : ImapStore {
     }
 
     override fun closeAllConnections() {
+        throw UnsupportedOperationException("not implemented")
+    }
+
+    override fun fetchImapPrefix() {
         throw UnsupportedOperationException("not implemented")
     }
 }

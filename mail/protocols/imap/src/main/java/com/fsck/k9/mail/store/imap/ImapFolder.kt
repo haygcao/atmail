@@ -2,18 +2,20 @@ package com.fsck.k9.mail.store.imap
 
 import com.fsck.k9.mail.BodyFactory
 import com.fsck.k9.mail.FetchProfile
-import com.fsck.k9.mail.Flag
+import com.fsck.k9.mail.FolderType
 import com.fsck.k9.mail.Message
 import com.fsck.k9.mail.MessageRetrievalListener
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.Part
 import java.io.IOException
 import java.util.Date
+import net.thunderbird.core.common.exception.MessagingException
+import net.thunderbird.core.common.mail.Flag
 
 interface ImapFolder {
     val serverId: String
     val mode: OpenMode?
     val messageCount: Int
+    val isOpen: Boolean
 
     @Throws(MessagingException::class)
     fun exists(): Boolean
@@ -42,7 +44,7 @@ interface ImapFolder {
     fun areMoreMessagesAvailable(indexOfOldestMessage: Int, earliestDate: Date?): Boolean
 
     @Throws(MessagingException::class)
-    fun fetch(
+    suspend fun fetch(
         messages: List<ImapMessage>,
         fetchProfile: FetchProfile,
         listener: FetchListener?,
@@ -69,7 +71,7 @@ interface ImapFolder {
     fun appendMessages(messages: List<Message>): Map<String, String>?
 
     @Throws(MessagingException::class)
-    fun setFlags(flags: Set<Flag>, value: Boolean)
+    fun setFlagsForAllMessages(flags: Set<Flag>, value: Boolean)
 
     @Throws(MessagingException::class)
     fun setFlags(messages: List<ImapMessage>, flags: Set<Flag>, value: Boolean)
@@ -81,12 +83,26 @@ interface ImapFolder {
     fun moveMessages(messages: List<ImapMessage>, folder: ImapFolder): Map<String, String>?
 
     @Throws(MessagingException::class)
+    fun deleteMessages(messages: List<ImapMessage>)
+
+    @Throws(MessagingException::class)
+    fun deleteAllMessages()
+
+    @Throws(MessagingException::class)
     fun expunge()
 
     @Throws(MessagingException::class)
     fun expungeUids(uids: List<String>)
+
+    /**
+     * Creates this folder on the IMAP server.
+     *
+     * @throws MessagingException when fails to create folder on IMAP server.
+     */
+    @Throws(MessagingException::class)
+    fun create(folderType: FolderType = FolderType.REGULAR): Boolean
 }
 
 interface FetchListener {
-    fun onFetchResponse(message: ImapMessage, isFirstResponse: Boolean)
+    suspend fun onFetchResponse(message: ImapMessage, isFirstResponse: Boolean)
 }

@@ -7,11 +7,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.designsystem.atom.button.ButtonFilled
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextCaption
-import app.k9mail.core.ui.compose.theme.MainTheme
 import app.k9mail.feature.account.oauth.R
+import net.thunderbird.components.ui.bolt.atom.button.ButtonFilled
+import net.thunderbird.components.ui.bolt.atom.text.TextBodySmall
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Composable
 internal fun SignInView(
@@ -22,10 +21,10 @@ internal fun SignInView(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(MainTheme.spacings.double),
+        verticalArrangement = Arrangement.spacedBy(BoltTheme.spacings.double),
         modifier = modifier,
     ) {
-        TextCaption(
+        TextBodySmall(
             text = stringResource(id = R.string.account_oauth_sign_in_description),
             textAlign = TextAlign.Center,
         )
@@ -35,6 +34,8 @@ internal fun SignInView(
                 onClick = onSignInClick,
                 enabled = isEnabled,
             )
+
+            GoogleSignInSupportText()
         } else {
             ButtonFilled(
                 text = stringResource(id = R.string.account_oauth_sign_in_button),
@@ -43,22 +44,4 @@ internal fun SignInView(
             )
         }
     }
-}
-
-@PreviewDevices
-@Composable
-internal fun SignInViewPreview() {
-    SignInView(
-        onSignInClick = {},
-        isGoogleSignIn = false,
-    )
-}
-
-@PreviewDevices
-@Composable
-internal fun SignInViewWithGooglePreview() {
-    SignInView(
-        onSignInClick = {},
-        isGoogleSignIn = true,
-    )
 }

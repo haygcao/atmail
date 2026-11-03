@@ -1,9 +1,8 @@
 package app.k9mail.feature.account.setup.ui.createaccount
 
 import app.k9mail.core.ui.compose.testing.ComposeTest
-import app.k9mail.core.ui.compose.testing.setContent
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.feature.account.setup.domain.entity.AccountUuid
+import app.k9mail.core.ui.compose.testing.setContentWithTheme
+import app.k9mail.feature.account.setup.ui.FakeBrandNameProvider
 import app.k9mail.feature.account.setup.ui.createaccount.CreateAccountContract.Effect
 import app.k9mail.feature.account.setup.ui.createaccount.CreateAccountContract.State
 import assertk.assertThat
@@ -12,41 +11,42 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import net.thunderbird.feature.account.AccountId
+import net.thunderbird.feature.account.AccountIdFactory
 
 class CreateAccountScreenTest : ComposeTest() {
 
     @Test
     fun `should delegate navigation effects`() = runTest {
-        val accountUuid = AccountUuid("irrelevant")
+        val accountId = AccountIdFactory.create()
         val initialState = State(
             isLoading = false,
             error = null,
         )
         val viewModel = FakeCreateAccountViewModel(initialState)
-        val navigateNextArguments = mutableListOf<AccountUuid>()
+        val navigateNextArguments = mutableListOf<AccountId>()
         var navigateBackCounter = 0
 
-        setContent {
-            K9Theme {
-                CreateAccountScreen(
-                    onNext = { accountUuid -> navigateNextArguments.add(accountUuid) },
-                    onBack = { navigateBackCounter++ },
-                    viewModel = viewModel,
-                )
-            }
+        setContentWithTheme {
+            CreateAccountScreen(
+                onNext = { accountUuid -> navigateNextArguments.add(accountUuid) },
+                onBack = { navigateBackCounter++ },
+                viewModel = viewModel,
+                brandNameProvider = FakeBrandNameProvider,
+            )
         }
 
         assertThat(navigateNextArguments).isEmpty()
         assertThat(navigateBackCounter).isEqualTo(0)
 
-        viewModel.effect(Effect.NavigateNext(accountUuid))
+        viewModel.effect(Effect.NavigateNext(accountId))
 
-        assertThat(navigateNextArguments).containsExactly(accountUuid)
+        assertThat(navigateNextArguments).containsExactly(accountId)
         assertThat(navigateBackCounter).isEqualTo(0)
 
         viewModel.effect(Effect.NavigateBack)
 
-        assertThat(navigateNextArguments).containsExactly(accountUuid)
+        assertThat(navigateNextArguments).containsExactly(accountId)
         assertThat(navigateBackCounter).isEqualTo(1)
     }
 }

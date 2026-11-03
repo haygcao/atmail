@@ -7,12 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import app.k9mail.core.ui.compose.designsystem.molecule.ContentLoadingErrorView
-import app.k9mail.core.ui.compose.designsystem.molecule.ErrorView
-import app.k9mail.core.ui.compose.designsystem.molecule.LoadingView
-import app.k9mail.core.ui.compose.designsystem.template.ResponsiveWidthContainer
-import app.k9mail.feature.account.common.ui.loadingerror.rememberContentLoadingErrorViewState
 import app.k9mail.feature.account.setup.R
+import net.thunderbird.components.ui.bolt.molecule.ContentLoadingErrorView
+import net.thunderbird.components.ui.bolt.molecule.ErrorView
+import net.thunderbird.components.ui.bolt.molecule.LoadingView
+import net.thunderbird.components.ui.bolt.template.ResponsiveWidthContainer
 
 @Composable
 internal fun CreateAccountContent(
@@ -25,9 +24,9 @@ internal fun CreateAccountContent(
             .padding(contentPadding)
             .testTag("CreateAccountContent")
             .then(modifier),
-    ) {
+    ) { contentPadding ->
         ContentLoadingErrorView(
-            state = rememberContentLoadingErrorViewState(state),
+            state = state,
             loading = {
                 LoadingView(
                     message = stringResource(R.string.account_setup_create_account_creating),
@@ -43,7 +42,7 @@ internal fun CreateAccountContent(
                     message = stringResource(R.string.account_setup_create_account_created),
                 )
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(contentPadding),
         )
     }
 }

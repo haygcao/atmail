@@ -1,25 +1,28 @@
 package app.k9mail.feature.account.setup.ui.specialfolders
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.common.mvi.observe
-import app.k9mail.core.ui.compose.designsystem.template.Scaffold
-import app.k9mail.core.ui.compose.theme.K9Theme
 import app.k9mail.feature.account.common.ui.WizardNavigationBar
 import app.k9mail.feature.account.common.ui.WizardNavigationBarState
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.Effect
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.Event
 import app.k9mail.feature.account.setup.ui.specialfolders.SpecialFoldersContract.ViewModel
-import app.k9mail.feature.account.setup.ui.specialfolders.fake.FakeSpecialFoldersViewModel
+import net.thunderbird.components.ui.bolt.template.Scaffold
+import net.thunderbird.core.common.provider.BrandNameProvider
+import net.thunderbird.core.ui.contract.mvi.observe
 
 @Composable
 fun SpecialFoldersScreen(
     onNext: (isManualSetup: Boolean) -> Unit,
     onBack: () -> Unit,
     viewModel: ViewModel,
+    brandNameProvider: BrandNameProvider,
     modifier: Modifier = Modifier,
 ) {
     val (state, dispatch) = viewModel.observe { effect ->
@@ -45,26 +48,16 @@ fun SpecialFoldersScreen(
                 state = WizardNavigationBarState(
                     showNext = state.value.isManualSetup && state.value.isLoading.not(),
                 ),
+                modifier = Modifier.imePadding(),
             )
         },
-        modifier = modifier,
+        modifier = modifier.windowInsetsPadding(WindowInsets.navigationBars),
     ) { innerPadding ->
         SpecialFoldersContent(
             state = state.value,
             onEvent = { dispatch(it) },
             contentPadding = innerPadding,
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun SpecialFoldersScreenK9Preview() {
-    K9Theme {
-        SpecialFoldersScreen(
-            onNext = {},
-            onBack = {},
-            viewModel = FakeSpecialFoldersViewModel(),
+            brandName = brandNameProvider.brandName,
         )
     }
 }

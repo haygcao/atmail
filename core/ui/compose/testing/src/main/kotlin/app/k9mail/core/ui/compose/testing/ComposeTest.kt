@@ -13,8 +13,16 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.test.espresso.Espresso
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.test.runTest
+import net.thunderbird.components.ui.bolt.theme.thunderbird.ThunderbirdBoltTheme
 import org.junit.Rule
 import org.junit.runner.RunWith
+import org.koin.compose.KoinApplicationPreview
+import org.koin.dsl.ModuleDeclaration
+import org.koin.dsl.module
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
@@ -29,9 +37,43 @@ open class ComposeTest {
     fun runComposeTest(testContent: ComposeContentTestRule.() -> Unit) = with(composeTestRule) {
         testContent()
     }
+
+    fun runComposeTestSuspend(
+        context: CoroutineContext = EmptyCoroutineContext,
+        testContent: suspend ComposeContentTestRule.() -> Unit,
+    ) = runTest(context) {
+        composeTestRule.testContent()
+    }
 }
 
+/**
+ * Set the content of the test
+ */
 fun ComposeTest.setContent(content: @Composable () -> Unit) = composeTestRule.setContent(content)
+
+/**
+ * Set the content of the test and wrap it in the default theme.
+ */
+fun ComposeTest.setContentWithTheme(content: @Composable () -> Unit) = composeTestRule.setContent {
+    ThunderbirdBoltTheme {
+        content()
+    }
+}
+
+/**
+ * Sets the Compose content for testing with Koin dependency injection and the default theme applied.
+ *
+ * @param modules The Koin module declaration containing the dependencies to be injected during the test
+ * @param content The composable content to be tested
+ */
+fun ComposeTest.setContentWithKoinAndTheme(modules: ModuleDeclaration, content: @Composable () -> Unit) =
+    composeTestRule.setContent {
+        KoinApplicationPreview(application = { modules(listOf(module(moduleDeclaration = modules))) }) {
+            ThunderbirdBoltTheme {
+                content()
+            }
+        }
+    }
 
 fun ComposeTest.onNodeWithTag(
     tag: String,
@@ -91,3 +133,5 @@ fun ComposeTest.onAllNodesWithContentDescription(
 ) = composeTestRule.onAllNodesWithContentDescription(label, substring, ignoreCase, useUnmergedTree)
 
 fun ComposeTest.onRoot(useUnmergedTree: Boolean = false) = composeTestRule.onRoot(useUnmergedTree)
+
+fun ComposeTest.pressBack() = Espresso.pressBack()

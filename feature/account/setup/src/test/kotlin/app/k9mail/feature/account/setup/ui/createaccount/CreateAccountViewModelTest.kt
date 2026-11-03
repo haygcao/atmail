@@ -1,8 +1,9 @@
 package app.k9mail.feature.account.setup.ui.createaccount
 
-import app.cash.turbine.testIn
-import app.k9mail.core.ui.compose.testing.MainDispatcherRule
+import app.cash.turbine.turbineScope
 import app.k9mail.core.ui.compose.testing.mvi.eventStateTest
+import app.k9mail.core.ui.compose.testing.mvi.runMviTest
+import app.k9mail.core.ui.compose.testing.mvi.turbinesWithInitialStateCheck
 import app.k9mail.feature.account.common.data.InMemoryAccountStateRepository
 import app.k9mail.feature.account.common.domain.entity.AccountDisplayOptions
 import app.k9mail.feature.account.common.domain.entity.AccountState
@@ -11,7 +12,6 @@ import app.k9mail.feature.account.common.domain.entity.AuthorizationState
 import app.k9mail.feature.account.common.domain.entity.SpecialFolderOption
 import app.k9mail.feature.account.common.domain.entity.SpecialFolderSettings
 import app.k9mail.feature.account.setup.AccountSetupExternalContract.AccountCreator.AccountCreatorResult
-import app.k9mail.feature.account.setup.domain.entity.AccountUuid
 import app.k9mail.feature.account.setup.ui.createaccount.CreateAccountContract.Effect
 import app.k9mail.feature.account.setup.ui.createaccount.CreateAccountContract.Event
 import app.k9mail.feature.account.setup.ui.createaccount.CreateAccountContract.State
@@ -24,14 +24,29 @@ import com.fsck.k9.mail.FolderType
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.folders.FolderServerId
 import com.fsck.k9.mail.folders.RemoteFolder
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.Rule
+import net.thunderbird.components.ui.testing.coroutines.MainDispatcherHelper
+import net.thunderbird.feature.account.AccountIdFactory
 
 class CreateAccountViewModelTest {
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val mainDispatcher = MainDispatcherHelper(UnconfinedTestDispatcher())
+
+    @BeforeTest
+    fun setUp() {
+        mainDispatcher.setUp()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mainDispatcher.tearDown()
+    }
 
     private val fakeCreateAccount = FakeCreateAccount()
     private val accountStateRepository = InMemoryAccountStateRepository().apply {
@@ -48,17 +63,14 @@ class CreateAccountViewModelTest {
     }
 
     @Test
-    fun `should change state and emit navigate effect after successfully creating account`() = runTest {
-        val accountUuid = "accountUuid"
-        fakeCreateAccount.result = AccountCreatorResult.Success(accountUuid)
+    fun `should change state and emit navigate effect after successfully creating account`() = runMviTest {
+        val accountId = AccountIdFactory.create()
+        fakeCreateAccount.result = AccountCreatorResult.Success(accountId)
+        val turbines = turbinesWithInitialStateCheck(createAccountViewModel, State(isLoading = true, error = null))
 
-        eventStateTest(
-            viewModel = createAccountViewModel,
-            initialState = State(isLoading = true, error = null),
-            event = Event.CreateAccount,
-            expectedState = State(isLoading = false, error = null),
-            coroutineScope = backgroundScope,
-        )
+        createAccountViewModel.event(Event.CreateAccount)
+
+        assertThat(turbines.stateTurbine.awaitItem()).isEqualTo(State(isLoading = false, error = null))
 
         assertThat(fakeCreateAccount.recordedInvocations).containsExactly(
             AccountState(
@@ -72,12 +84,11 @@ class CreateAccountViewModelTest {
             ),
         )
 
-        val effectTurbine = createAccountViewModel.effect.testIn(backgroundScope)
-        assertThat(effectTurbine.awaitItem()).isEqualTo(Effect.NavigateNext(AccountUuid(accountUuid)))
+        assertThat(turbines.effectTurbine.awaitItem()).isEqualTo(Effect.NavigateNext(accountId))
     }
 
     @Test
-    fun `should change state when creating account has failed`() = runTest {
+    fun `should change state when creating account has failed`() = runMviTest {
         val errorResult = AccountCreatorResult.Error("something went wrong")
         fakeCreateAccount.result = errorResult
 
@@ -86,39 +97,44 @@ class CreateAccountViewModelTest {
             initialState = State(isLoading = true, error = null),
             event = Event.CreateAccount,
             expectedState = State(isLoading = false, error = errorResult),
-            coroutineScope = backgroundScope,
         )
     }
 
     @Test
     fun `should ignore OnBackClicked event when in loading state`() = runTest {
-        val effectTurbine = createAccountViewModel.effect.testIn(scope = backgroundScope)
+        turbineScope {
+            val effectTurbine = createAccountViewModel.effect.testIn(scope = backgroundScope)
 
-        createAccountViewModel.event(Event.OnBackClicked)
+            createAccountViewModel.event(Event.OnBackClicked)
 
-        effectTurbine.ensureAllEventsConsumed()
+            effectTurbine.ensureAllEventsConsumed()
+        }
     }
 
     @Test
     fun `should emit NavigateBack effect when OnBackClicked event was received while in success state`() = runTest {
-        fakeCreateAccount.result = AccountCreatorResult.Success("accountUuid")
-        createAccountViewModel.event(Event.CreateAccount)
-        val effectTurbine = createAccountViewModel.effect.testIn(backgroundScope)
+        turbineScope {
+            fakeCreateAccount.result = AccountCreatorResult.Success(AccountIdFactory.create())
+            createAccountViewModel.event(Event.CreateAccount)
+            val effectTurbine = createAccountViewModel.effect.testIn(backgroundScope)
 
-        createAccountViewModel.event(Event.OnBackClicked)
+            createAccountViewModel.event(Event.OnBackClicked)
 
-        assertThat(effectTurbine.awaitItem()).isEqualTo(Effect.NavigateBack)
+            assertThat(effectTurbine.awaitItem()).isEqualTo(Effect.NavigateBack)
+        }
     }
 
     @Test
     fun `should emit NavigateBack effect when OnBackClicked event was received while in error state`() = runTest {
-        fakeCreateAccount.result = AccountCreatorResult.Error("something went wrong")
-        createAccountViewModel.event(Event.CreateAccount)
-        val effectTurbine = createAccountViewModel.effect.testIn(backgroundScope)
+        turbineScope {
+            fakeCreateAccount.result = AccountCreatorResult.Error("something went wrong")
+            createAccountViewModel.event(Event.CreateAccount)
+            val effectTurbine = createAccountViewModel.effect.testIn(backgroundScope)
 
-        createAccountViewModel.event(Event.OnBackClicked)
+            createAccountViewModel.event(Event.OnBackClicked)
 
-        assertThat(effectTurbine.awaitItem()).isEqualTo(Effect.NavigateBack)
+            assertThat(effectTurbine.awaitItem()).isEqualTo(Effect.NavigateBack)
+        }
     }
 
     private companion object {

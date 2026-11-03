@@ -1,65 +1,82 @@
 package app.k9mail
 
-import android.view.ContextThemeWrapper
+import android.app.Activity
+import android.app.Application
+import android.app.NotificationManager
+import android.content.Context
+import android.content.res.AssetManager
+import android.content.res.Configuration
+import android.content.res.Resources
+import android.util.DisplayMetrics
 import androidx.lifecycle.LifecycleOwner
 import androidx.work.WorkerParameters
-import app.k9mail.feature.account.server.validation.domain.ServerValidationDomainContract
-import app.k9mail.feature.account.server.validation.ui.ServerValidationContract
-import com.fsck.k9.account.AccountRemoverWorker
+import app.k9mail.core.ui.compose.common.window.FoldableStateObserver
+import app.k9mail.feature.account.common.domain.entity.InteractionMode
 import com.fsck.k9.job.MailSyncWorker
-import com.fsck.k9.mail.oauth.AuthStateStorage
-import com.fsck.k9.ui.R
-import com.fsck.k9.ui.changelog.ChangeLogMode
-import com.fsck.k9.ui.changelog.ChangelogViewModel
-import com.fsck.k9.ui.endtoend.AutocryptKeyTransferActivity
-import com.fsck.k9.ui.endtoend.AutocryptKeyTransferPresenter
-import com.fsck.k9.ui.folders.FolderIconProvider
-import com.fsck.k9.ui.folders.FolderNameFormatter
-import com.fsck.k9.ui.helper.SizeFormatter
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.koin.core.annotation.KoinInternalApi
-import org.koin.core.logger.PrintLogger
-import org.koin.core.parameter.parametersOf
-import org.koin.java.KoinJavaComponent
-import org.koin.test.AutoCloseKoinTest
-import org.koin.test.check.checkModules
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
+import com.fsck.k9.job.SyncDebugWorker
+import com.fsck.k9.mail.Part
+import com.fsck.k9.mailstore.AttachmentResolver
+import com.fsck.k9.message.html.DisplayHtml
+import com.fsck.k9.message.html.DisplayHtmlFactory
+import com.fsck.k9.ui.helper.DisplayHtmlUiFactory
+import com.fsck.k9.view.K9WebViewClient
+import com.fsck.k9.view.MessageWebView
+import kotlin.test.Test
+import net.openid.appauth.AppAuthConfiguration
+import net.thunderbird.app.common.feature.account.AccountRemoverWorker
+import net.thunderbird.core.common.mail.html.HtmlSettings
+import net.thunderbird.core.configstore.ConfigId
+import net.thunderbird.feature.account.AccountId
+import net.thunderbird.feature.changelog.internal.ChangelogViewModel
+import net.thunderbird.feature.mail.message.list.ui.dialog.SetupArchiveFolderDialogContract
+import net.thunderbird.feature.mail.message.reader.api.css.CssClassNameProvider
+import net.thunderbird.feature.mail.message.reader.api.ui.MessageReaderViewContract
+import net.thunderbird.feature.navigation.changelog.api.ChangeLogMode
+import net.thunderbird.feature.thundermail.internal.common.ui.ThundermailContract
+import org.koin.core.annotation.KoinExperimentalAPI
+import org.koin.test.verify.definition
+import org.koin.test.verify.injectedParameters
+import org.koin.test.verify.verify
 import org.openintents.openpgp.OpenPgpApiManager
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
 
-@RunWith(RobolectricTestRunner::class)
-class DependencyInjectionTest : AutoCloseKoinTest() {
-    private val lifecycleOwner = mock<LifecycleOwner> {
-        on { lifecycle } doReturn mock()
-    }
-    private val autocryptTransferView = mock<AutocryptKeyTransferActivity>()
-    private val authStateStorage = mock<AuthStateStorage>()
+class DependencyInjectionTest {
 
-    @KoinInternalApi
+    @OptIn(KoinExperimentalAPI::class)
     @Test
     fun testDependencyTree() {
-        KoinJavaComponent.getKoin().setupLogger(PrintLogger())
-
-        getKoin().checkModules {
-            withParameter<OpenPgpApiManager> { lifecycleOwner }
-            withParameters<AutocryptKeyTransferPresenter> { parametersOf(lifecycleOwner, autocryptTransferView) }
-            withParameter<FolderNameFormatter> { RuntimeEnvironment.getApplication() }
-            withParameter<SizeFormatter> { RuntimeEnvironment.getApplication() }
-            withParameter<ChangelogViewModel> { ChangeLogMode.CHANGE_LOG }
-            withParameter<MailSyncWorker> { mock<WorkerParameters>() }
-            withParameter<FolderIconProvider> {
-                ContextThemeWrapper(RuntimeEnvironment.getApplication(), R.style.Theme_K9_DayNight).theme
-            }
-            withParameters(clazz = Class.forName("com.fsck.k9.view.K9WebViewClient").kotlin) {
-                parametersOf(null, null)
-            }
-            withParameter<ServerValidationContract.IncomingViewModel> { authStateStorage }
-            withParameter<ServerValidationContract.OutgoingViewModel> { authStateStorage }
-            withParameter<ServerValidationDomainContract.UseCase.ValidateServerSettings> { authStateStorage }
-            withParameter<AccountRemoverWorker> { mock<WorkerParameters>() }
-        }
+        appModule.verify(
+            extraTypes = listOf(
+                AccountId::class,
+                AppAuthConfiguration::class,
+                Application::class,
+                AssetManager::class,
+                Configuration::class,
+                Context::class,
+                DisplayMetrics::class,
+                InteractionMode::class,
+                NotificationManager::class,
+                Resources::class,
+                ConfigId::class,
+            ),
+            injections = injectedParameters(
+                definition<AccountRemoverWorker>(WorkerParameters::class),
+                definition<ChangelogViewModel>(ChangeLogMode::class),
+                definition<DisplayHtml>(
+                    HtmlSettings::class,
+                    CssClassNameProvider::class,
+                    List::class,
+                ),
+                definition<DisplayHtmlFactory>(List::class),
+                definition<DisplayHtmlUiFactory>(List::class),
+                definition<FoldableStateObserver>(Activity::class),
+                definition<K9WebViewClient>(AttachmentResolver::class, MessageWebView.OnPageFinishedListener::class),
+                definition<MailSyncWorker>(WorkerParameters::class),
+                definition<SyncDebugWorker>(WorkerParameters::class),
+                definition<OpenPgpApiManager>(LifecycleOwner::class),
+                definition<SetupArchiveFolderDialogContract.ViewModel>(SetupArchiveFolderDialogContract.State::class),
+                definition<ThundermailContract.ViewModel>(ThundermailContract.State::class),
+                definition<MessageReaderViewContract.ViewModel<Part>>(MessageReaderViewContract.State::class),
+            ),
+        )
     }
 }

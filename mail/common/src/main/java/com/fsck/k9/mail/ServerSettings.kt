@@ -5,7 +5,7 @@ package com.fsck.k9.mail
  */
 data class ServerSettings @JvmOverloads constructor(
     @JvmField val type: String,
-    @JvmField val host: String?,
+    @JvmField val host: String,
     @JvmField val port: Int,
     @JvmField val connectionSecurity: ConnectionSecurity,
     @JvmField val authenticationType: AuthType,
@@ -15,9 +15,10 @@ data class ServerSettings @JvmOverloads constructor(
     val extra: Map<String, String?> = emptyMap(),
 ) {
     val isMissingCredentials: Boolean = when (authenticationType) {
+        AuthType.NONE -> false
         AuthType.EXTERNAL -> clientCertificateAlias == null
         AuthType.XOAUTH2 -> username.isBlank()
-        else -> username.isNotBlank() && password == null
+        else -> username.isBlank() || password.isNullOrBlank()
     }
 
     init {

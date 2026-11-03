@@ -1,15 +1,14 @@
 package app.k9mail.feature.launcher.ui
 
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
-import app.k9mail.core.ui.compose.common.activity.LocalActivity
-import app.k9mail.core.ui.compose.designsystem.atom.Background
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.feature.launcher.FeatureLauncherExternalContract.FeatureThemeProvider
 import app.k9mail.feature.launcher.navigation.FeatureLauncherNavHost
+import net.thunderbird.components.ui.bolt.atom.Surface
+import net.thunderbird.core.ui.theme.api.FeatureThemeProvider
 import org.koin.compose.koinInject
 
 @Composable
@@ -20,20 +19,17 @@ fun FeatureLauncherApp(
     val navController = rememberNavController()
 
     themeProvider.WithTheme {
-        K9Theme {
-            Background(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .then(modifier),
-            ) {
-                val activity = LocalActivity.current
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(modifier),
+        ) {
+            val activity = LocalActivity.current as ComponentActivity
 
-                FeatureLauncherNavHost(
-                    navController = navController,
-                    onBack = { activity.finish() },
-                )
-            }
+            FeatureLauncherNavHost(
+                navController = navController,
+                onBack = { activity.finish() },
+            )
         }
     }
 }

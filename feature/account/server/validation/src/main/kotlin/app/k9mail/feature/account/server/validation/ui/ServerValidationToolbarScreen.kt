@@ -1,18 +1,18 @@
 package app.k9mail.feature.account.server.validation.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import app.k9mail.core.ui.compose.common.annotation.PreviewDevices
-import app.k9mail.core.ui.compose.common.mvi.observeWithoutEffect
-import app.k9mail.core.ui.compose.designsystem.template.Scaffold
-import app.k9mail.core.ui.compose.theme.K9Theme
-import app.k9mail.feature.account.common.ui.AccountTopAppBarWithBackButton
 import app.k9mail.feature.account.common.ui.WizardNavigationBar
 import app.k9mail.feature.account.common.ui.WizardNavigationBarState
-import app.k9mail.feature.account.oauth.ui.preview.PreviewAccountOAuthViewModel
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.Event
 import app.k9mail.feature.account.server.validation.ui.ServerValidationContract.ViewModel
-import app.k9mail.feature.account.server.validation.ui.fake.FakeIncomingServerValidationViewModel
+import net.thunderbird.components.ui.bolt.organism.TopAppBarWithBackButton
+import net.thunderbird.components.ui.bolt.template.Scaffold
+import net.thunderbird.core.ui.contract.mvi.observeWithoutEffect
 
 @Composable
 internal fun ServerValidationToolbarScreen(
@@ -24,9 +24,9 @@ internal fun ServerValidationToolbarScreen(
 
     Scaffold(
         topBar = {
-            AccountTopAppBarWithBackButton(
+            TopAppBarWithBackButton(
                 title = title,
-                onBackClicked = { dispatch(Event.OnBackClicked) },
+                onBackClick = { dispatch(Event.OnBackClicked) },
             )
         },
         bottomBar = {
@@ -36,9 +36,10 @@ internal fun ServerValidationToolbarScreen(
                 state = WizardNavigationBarState(
                     showNext = false,
                 ),
+                modifier = Modifier.imePadding(),
             )
         },
-        modifier = modifier,
+        modifier = modifier.windowInsetsPadding(WindowInsets.navigationBars),
     ) { innerPadding ->
         ServerValidationContent(
             onEvent = { dispatch(it) },
@@ -46,19 +47,6 @@ internal fun ServerValidationToolbarScreen(
             isIncomingValidation = viewModel.isIncomingValidation,
             oAuthViewModel = viewModel.oAuthViewModel,
             contentPadding = innerPadding,
-        )
-    }
-}
-
-@Composable
-@PreviewDevices
-internal fun IncomingServerValidationToolbarScreenK9Preview() {
-    K9Theme {
-        ServerValidationToolbarScreen(
-            title = "Incoming server settings",
-            viewModel = FakeIncomingServerValidationViewModel(
-                oAuthViewModel = PreviewAccountOAuthViewModel(),
-            ),
         )
     }
 }

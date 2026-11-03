@@ -15,8 +15,6 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewModelScope
 import app.k9mail.feature.account.oauth.domain.AccountOAuthDomainContract.UseCase.GetOAuthRequestIntent
 import app.k9mail.feature.account.oauth.domain.entity.AuthorizationIntentResult
-import com.fsck.k9.Account
-import com.fsck.k9.preferences.AccountManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,20 +26,24 @@ import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
-import timber.log.Timber
+import net.thunderbird.components.core.logging.Logger
+import net.thunderbird.core.android.account.LegacyAccount
+import net.thunderbird.core.android.account.LegacyAccountManager
 
 private const val KEY_AUTHORIZATION = "app.k9mail_auth"
+private const val TAG = "AuthViewModel"
 
 @Suppress("TooManyFunctions")
 internal class AuthViewModel(
     application: Application,
-    private val accountManager: AccountManager,
+    private val accountManager: LegacyAccountManager,
     private val getOAuthRequestIntent: GetOAuthRequestIntent,
+    private val logger: Logger,
 ) : AndroidViewModel(application) {
     private var authService: AuthorizationService? = null
     private val authState = AuthState()
 
-    private var account: Account? = null
+    private var account: LegacyAccount? = null
 
     private lateinit var resultObserver: AppAuthResultObserver
 
@@ -50,10 +52,10 @@ internal class AuthViewModel(
 
     @Synchronized
     private fun getAuthService(): AuthorizationService {
-        return authService ?: AuthorizationService(getApplication<Application>()).also { authService = it }
+        return authService ?: AuthorizationService(getApplication()).also { authService = it }
     }
 
-    fun init(activityResultRegistry: ActivityResultRegistry, lifecycle: Lifecycle, account: Account) {
+    fun init(activityResultRegistry: ActivityResultRegistry, lifecycle: Lifecycle, account: LegacyAccount) {
         this.account = account
         resultObserver = AppAuthResultObserver(activityResultRegistry)
         lifecycle.addObserver(resultObserver)
@@ -63,22 +65,8 @@ internal class AuthViewModel(
         _uiState.update { AuthFlowState.Idle }
     }
 
-    fun isAuthorized(account: Account): Boolean {
-        val authState = getOrCreateAuthState(account)
-        return authState.isAuthorized
-    }
-
-    fun isUsingGoogle(account: Account): Boolean {
-        return GoogleOAuthHelper.isGoogle(account.incomingServerSettings.host!!)
-    }
-
-    private fun getOrCreateAuthState(account: Account): AuthState {
-        return try {
-            account.oAuthState?.let { AuthState.jsonDeserialize(it) } ?: AuthState()
-        } catch (e: Exception) {
-            Timber.e(e, "Error deserializing AuthState")
-            AuthState()
-        }
+    fun isUsingGoogle(account: LegacyAccount): Boolean {
+        return GoogleOAuthHelper.isGoogle(account.incomingServerSettings.host)
     }
 
     fun login() {
@@ -88,20 +76,23 @@ internal class AuthViewModel(
             try {
                 startLogin(account)
             } catch (e: ActivityNotFoundException) {
+                logger.error(TAG, e) { "No browser found to start OAuth login flow." }
                 _uiState.update { AuthFlowState.BrowserNotFound }
             }
         }
     }
 
-    private suspend fun startLogin(account: Account) {
+    private suspend fun startLogin(account: LegacyAccount) {
         val authRequestIntentResult = withContext(Dispatchers.IO) {
-            getOAuthRequestIntent.execute(account.incomingServerSettings.host!!, account.email)
+            getOAuthRequestIntent.execute(account.incomingServerSettings.host, account.email)
         }
 
         when (authRequestIntentResult) {
             AuthorizationIntentResult.NotSupported -> {
                 _uiState.update { AuthFlowState.NotSupported }
             }
+
+            AuthorizationIntentResult.BrowserNotAvailable -> _uiState.update { AuthFlowState.BrowserNotFound }
 
             is AuthorizationIntentResult.Success -> resultObserver.login(authRequestIntentResult.intent)
         }
@@ -137,10 +128,11 @@ internal class AuthViewModel(
                 authState.update(tokenResponse, authorizationException)
 
                 val account = account!!
-                account.oAuthState = authState.jsonSerializeString()
+
+                val newAuthState = authState.jsonSerializeString()
 
                 viewModelScope.launch(Dispatchers.IO) {
-                    accountManager.saveAccount(account)
+                    accountManager.update(account.id) { it.copy(oAuthState = newAuthState) }
                 }
 
                 if (authorizationException != null) {

@@ -13,20 +13,20 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
 import assertk.assertions.message
 import assertk.assertions.prop
-import com.fsck.k9.logging.Timber
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.AuthenticationFailedException
 import com.fsck.k9.mail.ConnectionSecurity
 import com.fsck.k9.mail.K9MailLib
 import com.fsck.k9.mail.MissingCapabilityException
-import com.fsck.k9.mail.SystemOutLogger
-import com.fsck.k9.mail.XOAuth2ChallengeParserTest
-import com.fsck.k9.mail.helpers.TestTrustedSocketFactory
 import com.fsck.k9.mail.oauth.OAuth2TokenProvider
 import com.fsck.k9.mail.ssl.TrustedSocketFactory
 import com.fsck.k9.mail.store.imap.mockserver.MockImapServer
+import com.fsck.k9.mail.testing.XOAuth2ChallengeParserTestData
+import com.fsck.k9.mail.testing.security.TestTrustedSocketFactory
 import java.io.IOException
 import java.net.UnknownHostException
+import net.thunderbird.components.core.logging.testing.TestLogger
+import net.thunderbird.legacy.logging.Log
 import okio.ByteString.Companion.encodeUtf8
 import org.junit.Before
 import org.junit.Test
@@ -46,13 +46,13 @@ private val XOAUTH_STRING_RETRY = "user=$USERNAME\u0001auth=Bearer $XOAUTH_TOKEN
 private val OAUTHBEARER_STRING = "n,a=$USERNAME,\u0001auth=Bearer $XOAUTH_TOKEN\u0001\u0001".base64()
 
 class RealImapConnectionTest {
-    private var socketFactory = TestTrustedSocketFactory.newInstance()
+    private var socketFactory = TestTrustedSocketFactory
     private var oAuth2TokenProvider = TestTokenProvider()
 
     @Before
     fun setUp() {
+        Log.logger = TestLogger()
         if (DEBUGGING) {
-            Timber.logger = SystemOutLogger()
             K9MailLib.setDebug(true)
             K9MailLib.setDebugSensitive(true)
         }
@@ -411,7 +411,7 @@ class RealImapConnectionTest {
         val server = MockImapServer().apply {
             preAuthenticationDialog(capabilities = "SASL-IR AUTH=XOAUTH AUTH=XOAUTH2")
             expect("2 AUTHENTICATE XOAUTH2 $XOAUTH_STRING")
-            output("+ ${XOAuth2ChallengeParserTest.STATUS_401_RESPONSE}")
+            output("+ ${XOAuth2ChallengeParserTestData.STATUS_401_RESPONSE}")
             expect("")
             output("2 NO SASL authentication failed")
         }
@@ -429,7 +429,7 @@ class RealImapConnectionTest {
         val server = MockImapServer().apply {
             preAuthenticationDialog(capabilities = "SASL-IR AUTH=XOAUTH AUTH=XOAUTH2")
             expect("2 AUTHENTICATE XOAUTH2 $XOAUTH_STRING")
-            output("+ ${XOAuth2ChallengeParserTest.STATUS_400_RESPONSE}")
+            output("+ ${XOAuth2ChallengeParserTestData.STATUS_400_RESPONSE}")
             expect("")
             output("2 NO SASL authentication failed")
             expect("3 AUTHENTICATE XOAUTH2 $XOAUTH_STRING_RETRY")
@@ -449,7 +449,7 @@ class RealImapConnectionTest {
         val server = MockImapServer().apply {
             preAuthenticationDialog(capabilities = "SASL-IR AUTH=XOAUTH AUTH=XOAUTH2")
             expect("2 AUTHENTICATE XOAUTH2 $XOAUTH_STRING")
-            output("+ ${XOAuth2ChallengeParserTest.INVALID_RESPONSE}")
+            output("+ ${XOAuth2ChallengeParserTestData.INVALID_RESPONSE}")
             expect("")
             output("2 NO SASL authentication failed")
             expect("3 AUTHENTICATE XOAUTH2 $XOAUTH_STRING_RETRY")
@@ -470,7 +470,7 @@ class RealImapConnectionTest {
         val server = MockImapServer().apply {
             preAuthenticationDialog(capabilities = "SASL-IR AUTH=XOAUTH AUTH=XOAUTH2")
             expect("2 AUTHENTICATE XOAUTH2 $XOAUTH_STRING")
-            output("+ ${XOAuth2ChallengeParserTest.MISSING_STATUS_RESPONSE}")
+            output("+ ${XOAuth2ChallengeParserTestData.MISSING_STATUS_RESPONSE}")
             expect("")
             output("2 NO SASL authentication failed")
             expect("3 AUTHENTICATE XOAUTH2 $XOAUTH_STRING_RETRY")
@@ -612,7 +612,10 @@ class RealImapConnectionTest {
                     "APPENDLIMIT=35651584",
             )
             output("2 OK")
-            simplePostAuthenticationDialog(tag = 3)
+            expect("3 ENABLE UTF8=ACCEPT")
+            output("* ENABLED")
+            output("3 OK")
+            simplePostAuthenticationDialog(tag = 4)
         }
         val imapConnection = startServerAndCreateImapConnection(server, authType = AuthType.PLAIN)
 
@@ -660,7 +663,7 @@ class RealImapConnectionTest {
 
     @Test(expected = IOException::class)
     fun `open() with connection error should throw`() {
-        val settings = createImapSettings(host = "127.1.2.3")
+        val settings = createImapSettings(host = "192.0.2.123")
         val imapConnection = createImapConnection(settings, socketFactory, oAuth2TokenProvider)
 
         imapConnection.open()
@@ -775,6 +778,42 @@ class RealImapConnectionTest {
     }
 
     @Test
+    fun `open() with ENABLE capability should try to enable UTF8=ACCEPT`() {
+        val server = MockImapServer().apply {
+            simplePreAuthAndLoginDialog(postAuthCapabilities = "ENABLE")
+            expect("3 ENABLE UTF8=ACCEPT")
+            output("* ENABLED")
+            output("3 OK")
+            simplePostAuthenticationDialog(tag = 4)
+        }
+        val imapConnection = startServerAndCreateImapConnection(server, useCompression = true)
+
+        imapConnection.open()
+        assertThat(imapConnection.isUtf8AcceptCapable).isFalse()
+
+        server.verifyConnectionStillOpen()
+        server.verifyInteractionCompleted()
+    }
+
+    @Test
+    fun `open() with ENABLE and UTF8=ACCEPT capabilities should enable UTF8=ACCEPT`() {
+        val server = MockImapServer().apply {
+            simplePreAuthAndLoginDialog(postAuthCapabilities = "ENABLE UTF8=ACCEPT")
+            expect("3 ENABLE UTF8=ACCEPT")
+            output("* ENABLED UTF8=ACCEPT")
+            output("3 OK")
+            simplePostAuthenticationDialog(tag = 4)
+        }
+        val imapConnection = startServerAndCreateImapConnection(server, useCompression = true)
+
+        imapConnection.open()
+        assertThat(imapConnection.isUtf8AcceptCapable).isTrue()
+
+        server.verifyConnectionStillOpen()
+        server.verifyInteractionCompleted()
+    }
+
+    @Test
     fun `open() with COMPRESS=DEFLATE capability should enable compression`() {
         val server = MockImapServer().apply {
             simplePreAuthAndLoginDialog(postAuthCapabilities = "COMPRESS=DEFLATE")
@@ -857,7 +896,7 @@ class RealImapConnectionTest {
     }
 
     @Test
-    fun `open() with ID capability and clientIdAppName should send ID command`() {
+    fun `open() with ID capability and clientInfoAppName should send ID command`() {
         val server = MockImapServer().apply {
             simplePreAuthAndLoginDialog(postAuthCapabilities = "ID")
             expect("""3 ID ("name" "AppName" "version" "AppVersion")""")
@@ -867,7 +906,7 @@ class RealImapConnectionTest {
         }
         val imapConnection = startServerAndCreateImapConnection(
             server,
-            clientId = ImapClientId(appName = "AppName", appVersion = "AppVersion"),
+            clientInfo = ImapClientInfo(appName = "AppName", appVersion = "AppVersion"),
         )
 
         imapConnection.open()
@@ -877,14 +916,14 @@ class RealImapConnectionTest {
     }
 
     @Test
-    fun `open() without ID capability and clientIdAppName set should send not ID command`() {
+    fun `open() without ID capability and clientInfoAppName set should send not ID command`() {
         val server = MockImapServer().apply {
             simplePreAuthAndLoginDialog()
             simplePostAuthenticationDialog(tag = 3)
         }
         val imapConnection = startServerAndCreateImapConnection(
             server,
-            clientId = ImapClientId(appName = "AppName", appVersion = "AppVersion"),
+            clientInfo = ImapClientInfo(appName = "AppName", appVersion = "AppVersion"),
         )
 
         imapConnection.open()
@@ -894,12 +933,12 @@ class RealImapConnectionTest {
     }
 
     @Test
-    fun `open() with ID capability but empty clientIdAppName should not send ID command`() {
+    fun `open() with ID capability but empty clientInfoAppName should not send ID command`() {
         val server = MockImapServer().apply {
             simplePreAuthAndLoginDialog(postAuthCapabilities = "ID")
             simplePostAuthenticationDialog(tag = 3)
         }
-        val imapConnection = startServerAndCreateImapConnection(server, clientId = null)
+        val imapConnection = startServerAndCreateImapConnection(server, clientInfo = null)
 
         imapConnection.open()
 
@@ -918,7 +957,7 @@ class RealImapConnectionTest {
         }
         val imapConnection = startServerAndCreateImapConnection(
             server,
-            clientId = ImapClientId(appName = "AppName", appVersion = "AppVersion"),
+            clientInfo = ImapClientInfo(appName = "AppName", appVersion = "AppVersion"),
         )
 
         imapConnection.open()
@@ -937,7 +976,7 @@ class RealImapConnectionTest {
         }
         val imapConnection = startServerAndCreateImapConnection(
             server,
-            clientId = ImapClientId(appName = "AppName", appVersion = "AppVersion"),
+            clientInfo = ImapClientInfo(appName = "AppName", appVersion = "AppVersion"),
         )
 
         imapConnection.open()
@@ -956,7 +995,7 @@ class RealImapConnectionTest {
         }
         val imapConnection = startServerAndCreateImapConnection(
             server,
-            clientId = ImapClientId(appName = "AppName", appVersion = "AppVersion"),
+            clientInfo = ImapClientInfo(appName = "AppName", appVersion = "AppVersion"),
         )
 
         imapConnection.open()
@@ -1146,6 +1185,7 @@ class RealImapConnectionTest {
             settings,
             socketFactory,
             oAuth2TokenProvider,
+            FolderNameCodec(),
             connectionGeneration,
             SOCKET_CONNECT_TIMEOUT,
             SOCKET_READ_TIMEOUT,
@@ -1157,7 +1197,7 @@ class RealImapConnectionTest {
         connectionSecurity: ConnectionSecurity = ConnectionSecurity.NONE,
         authType: AuthType = AuthType.PLAIN,
         useCompression: Boolean = false,
-        clientId: ImapClientId? = null,
+        clientInfo: ImapClientInfo? = null,
     ): ImapConnection {
         server.start()
 
@@ -1169,7 +1209,7 @@ class RealImapConnectionTest {
             username = USERNAME,
             password = PASSWORD,
             useCompression = useCompression,
-            clientId = clientId,
+            clientInfo = clientInfo,
         )
 
         return createImapConnection(settings, socketFactory, oAuth2TokenProvider)
@@ -1233,7 +1273,7 @@ class RealImapConnectionTest {
     }
 }
 
-class TestTokenProvider : OAuth2TokenProvider {
+class TestTokenProvider(override val usernames: Set<String> = emptySet()) : OAuth2TokenProvider {
     private var invalidationCount = 0
 
     override fun getToken(timeoutMillis: Long): String {

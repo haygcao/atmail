@@ -1,6 +1,5 @@
 package com.fsck.k9.mail.ssl
 
-import com.fsck.k9.logging.Timber
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -12,9 +11,12 @@ import java.security.NoSuchAlgorithmException
 import java.security.cert.Certificate
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
+import net.thunderbird.legacy.logging.Log
 
 private const val KEY_STORE_FILE_VERSION = 1
 private val PASSWORD = charArrayOf()
+
+private const val TAG = "LocalKeyStore"
 
 class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
     private var keyStoreFile: File? = null
@@ -33,7 +35,7 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
              * Keystore.load. Instead, we let it be created anew.
              */
             if (file.exists() && !file.delete()) {
-                Timber.d("Failed to delete empty keystore file: %s", file.absolutePath)
+                Log.d(TAG, "Failed to delete empty keystore file: %s", file.absolutePath)
             }
         }
 
@@ -51,7 +53,7 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
                 load(fileInputStream, PASSWORD)
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to initialize local key store")
+            Log.e(TAG, e, "Failed to initialize local key store")
 
             // Use of the local key store is effectively disabled.
             keyStoreFile = null
@@ -66,7 +68,7 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
             // Blow away version "0" because certificate aliases have changed.
             val versionZeroFile = getKeyStoreFile(0)
             if (versionZeroFile.exists() && !versionZeroFile.delete()) {
-                Timber.d("Failed to delete old key-store file: %s", versionZeroFile.absolutePath)
+                Log.d(TAG, "Failed to delete old key-store file: %s", versionZeroFile.absolutePath)
             }
         }
     }
@@ -113,10 +115,11 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
         return try {
             val storedCert = keyStore.getCertificate(getCertKey(host, port))
             if (storedCert == null) {
-                Timber.v("Couldn't find a stored certificate for %s:%d", host, port)
+                Log.v(TAG, "Couldn't find a stored certificate for %s:%d", host, port)
                 false
             } else if (storedCert != certificate) {
-                Timber.v(
+                Log.v(
+                    TAG,
                     "Stored certificate for %s:%d doesn't match.\nExpected:\n%s\nActual:\n%s",
                     host,
                     port,
@@ -125,11 +128,11 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
                 )
                 false
             } else {
-                Timber.v("Stored certificate for %s:%d matches the server certificate", host, port)
+                Log.v(TAG, "Stored certificate for %s:%d matches the server certificate", host, port)
                 true
             }
         } catch (e: KeyStoreException) {
-            Timber.w(e, "Error reading from KeyStore")
+            Log.w(TAG, e, "Error reading from KeyStore")
             false
         }
     }
@@ -144,7 +147,7 @@ class LocalKeyStore(private val directoryProvider: KeyStoreDirectoryProvider) {
         } catch (e: KeyStoreException) {
             // Ignore: most likely there was no cert. found
         } catch (e: CertificateException) {
-            Timber.e(e, "Error updating the local key store file")
+            Log.e(TAG, e, "Error updating the local key store file")
         }
     }
 

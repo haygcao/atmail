@@ -6,26 +6,30 @@ import app.k9mail.feature.account.common.domain.entity.toAuthType
 import app.k9mail.feature.account.common.domain.entity.toAuthenticationType
 import app.k9mail.feature.account.common.domain.entity.toConnectionSecurity
 import app.k9mail.feature.account.common.domain.entity.toMailConnectionSecurity
-import app.k9mail.feature.account.common.domain.input.NumberInputField
-import app.k9mail.feature.account.common.domain.input.StringInputField
+import app.k9mail.feature.account.server.settings.ui.common.toInvalidEmailDomain
 import app.k9mail.feature.account.server.settings.ui.incoming.IncomingServerSettingsContract.State
 import com.fsck.k9.mail.ServerSettings
 import com.fsck.k9.mail.store.imap.ImapStoreSettings
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.autoDetectNamespace
-import com.fsck.k9.mail.store.imap.ImapStoreSettings.isSendClientId
+import com.fsck.k9.mail.store.imap.ImapStoreSettings.isSendClientInfo
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.isUseCompression
 import com.fsck.k9.mail.store.imap.ImapStoreSettings.pathPrefix
+import net.thunderbird.core.validation.input.NumberInputField
+import net.thunderbird.core.validation.input.StringInputField
 
-fun AccountState.toIncomingServerSettingsState() = incomingServerSettings?.toIncomingServerSettingsState()
+fun AccountState.toIncomingServerSettingsState() = incomingServerSettings?.toIncomingServerSettingsStateOrNull()
     ?: State(
         username = StringInputField(value = emailAddress ?: ""),
-        isLoading = false,
+        server = StringInputField(value = emailAddress?.toInvalidEmailDomain() ?: ""),
     )
 
-private fun ServerSettings.toIncomingServerSettingsState(): State {
+// Server settings with an unsupported protocol (e.g. "demo" from the debug/daily DemoAutoDiscovery) are treated
+// like missing settings, so the user ends up with the manual configuration defaults instead of a crash.
+private fun ServerSettings.toIncomingServerSettingsStateOrNull(): State? {
+    val protocolType = IncomingProtocolType.fromNameOrNull(type) ?: return null
     return State(
-        protocolType = IncomingProtocolType.fromName(type),
-        server = StringInputField(value = host ?: ""),
+        protocolType = protocolType,
+        server = StringInputField(value = host),
         security = connectionSecurity.toConnectionSecurity(),
         port = NumberInputField(value = port.toLong()),
         authenticationType = authenticationType.toAuthenticationType(),
@@ -35,10 +39,7 @@ private fun ServerSettings.toIncomingServerSettingsState(): State {
         imapAutodetectNamespaceEnabled = autoDetectNamespace,
         imapPrefix = StringInputField(value = pathPrefix ?: ""),
         imapUseCompression = isUseCompression,
-        imapSendClientId = isSendClientId,
-
-        isLoading = false,
-        error = null,
+        imapSendClientInfo = isSendClientInfo,
     )
 }
 
@@ -46,7 +47,7 @@ internal fun State.toServerSettings(): ServerSettings {
     return ServerSettings(
         type = protocolType.defaultName,
         host = server.value.trim(),
-        port = port.value!!.toInt(),
+        port = checkNotNull(port.value) { "Missing port" }.toInt(),
         connectionSecurity = security.toMailConnectionSecurity(),
         authenticationType = authenticationType.toAuthType(),
         username = username.value.trim(),
@@ -62,7 +63,7 @@ private fun State.createExtras(): Map<String, String?> {
             autoDetectNamespace = imapAutodetectNamespaceEnabled,
             pathPrefix = if (imapAutodetectNamespaceEnabled) null else imapPrefix.value.trim(),
             useCompression = imapUseCompression,
-            sendClientId = imapSendClientId,
+            sendClientInfo = imapSendClientInfo,
         )
     } else {
         emptyMap()

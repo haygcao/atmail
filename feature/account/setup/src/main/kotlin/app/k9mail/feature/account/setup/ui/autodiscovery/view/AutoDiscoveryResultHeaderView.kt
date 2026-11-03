@@ -9,14 +9,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
-import app.k9mail.core.ui.compose.designsystem.atom.icon.Icon
-import app.k9mail.core.ui.compose.designsystem.atom.icon.Icons
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextBody2
-import app.k9mail.core.ui.compose.designsystem.atom.text.TextHeadline6
-import app.k9mail.core.ui.compose.theme.MainTheme
-import app.k9mail.core.ui.compose.theme.PreviewWithThemes
+import app.k9mail.feature.account.setup.ui.autodiscovery.AccountSetupTestTags
+import net.thunderbird.components.ui.bolt.atom.icon.Icon
+import net.thunderbird.components.ui.bolt.atom.icon.Icons
+import net.thunderbird.components.ui.bolt.atom.text.TextBodyMedium
+import net.thunderbird.components.ui.bolt.atom.text.TextTitleLarge
+import net.thunderbird.components.ui.bolt.theme.BoltTheme
 
 @Suppress("LongMethod")
 @Composable
@@ -35,95 +35,50 @@ internal fun AutoDiscoveryResultHeaderView(
             imageVector = state.icon,
             tint = selectColor(state),
             modifier = Modifier
-                .padding(MainTheme.spacings.default)
-                .requiredSize(MainTheme.sizes.medium),
+                .padding(BoltTheme.spacings.default)
+                .requiredSize(BoltTheme.sizes.medium),
         )
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(
-                    start = MainTheme.spacings.default,
-                    top = MainTheme.spacings.half,
-                    bottom = MainTheme.spacings.half,
+                    start = BoltTheme.spacings.default,
+                    top = BoltTheme.spacings.half,
+                    bottom = BoltTheme.spacings.half,
                 ),
         ) {
-            TextHeadline6(
+            TextTitleLarge(
                 text = stringResource(state.titleResourceId),
+                modifier = Modifier.testTag(selectTitleTestTag(state)),
             )
-            TextBody2(
+            TextBodyMedium(
                 text = stringResource(state.subtitleResourceId),
-                color = selectColor(state),
             )
         }
         if (state.isExpandable) {
             Icon(
-                imageVector = if (isExpanded) Icons.Outlined.expandLess else Icons.Outlined.expandMore,
-                modifier = Modifier.padding(MainTheme.spacings.default),
+                imageVector = if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                modifier = Modifier.padding(BoltTheme.spacings.default),
             )
         }
+    }
+}
+
+private fun selectTitleTestTag(state: AutoDiscoveryResultHeaderState): String {
+    return when (state) {
+        AutoDiscoveryResultHeaderState.NoSettings -> AccountSetupTestTags.TEST_TAG_TXT_CONFIG_NOT_FOUND
+
+        AutoDiscoveryResultHeaderState.Trusted,
+        AutoDiscoveryResultHeaderState.Untrusted,
+        -> AccountSetupTestTags.TEST_TAG_TXT_CONFIG_FOUND
     }
 }
 
 @Composable
 private fun selectColor(state: AutoDiscoveryResultHeaderState): Color {
     return when (state) {
-        AutoDiscoveryResultHeaderState.NoSettings -> MainTheme.colors.primary
-        AutoDiscoveryResultHeaderState.Trusted -> MainTheme.colors.success
-        AutoDiscoveryResultHeaderState.Untrusted -> MainTheme.colors.warning
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryResultHeaderViewTrustedCollapsedPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryResultHeaderView(
-            state = AutoDiscoveryResultHeaderState.Trusted,
-            isExpanded = true,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryResultHeaderViewTrustedExpandedPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryResultHeaderView(
-            state = AutoDiscoveryResultHeaderState.Trusted,
-            isExpanded = false,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryResultHeaderViewUntrustedCollapsedPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryResultHeaderView(
-            state = AutoDiscoveryResultHeaderState.Untrusted,
-            isExpanded = true,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryResultHeaderViewUntrustedExpandedPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryResultHeaderView(
-            state = AutoDiscoveryResultHeaderState.Untrusted,
-            isExpanded = false,
-        )
-    }
-}
-
-@Preview
-@Composable
-internal fun AutoDiscoveryResultHeaderNoSettingsPreview() {
-    PreviewWithThemes {
-        AutoDiscoveryResultHeaderView(
-            state = AutoDiscoveryResultHeaderState.NoSettings,
-            isExpanded = false,
-        )
+        AutoDiscoveryResultHeaderState.NoSettings -> BoltTheme.colors.primary
+        AutoDiscoveryResultHeaderState.Trusted -> BoltTheme.colors.success
+        AutoDiscoveryResultHeaderState.Untrusted -> BoltTheme.colors.warning
     }
 }

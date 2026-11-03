@@ -7,7 +7,6 @@ import assertk.assertions.prop
 import com.fsck.k9.mail.AuthType
 import com.fsck.k9.mail.AuthType.CRAM_MD5
 import com.fsck.k9.mail.AuthType.EXTERNAL
-import com.fsck.k9.mail.AuthType.LOGIN
 import com.fsck.k9.mail.AuthType.PLAIN
 import com.fsck.k9.mail.AuthenticationFailedException
 import com.fsck.k9.mail.CertificateChainException
@@ -16,14 +15,17 @@ import com.fsck.k9.mail.ConnectionSecurity
 import com.fsck.k9.mail.ConnectionSecurity.NONE
 import com.fsck.k9.mail.ConnectionSecurity.SSL_TLS_REQUIRED
 import com.fsck.k9.mail.ConnectionSecurity.STARTTLS_REQUIRED
-import com.fsck.k9.mail.MessagingException
 import com.fsck.k9.mail.MissingCapabilityException
-import com.fsck.k9.mail.helpers.TestTrustedSocketFactory
 import com.fsck.k9.mail.ssl.TrustedSocketFactory
+import com.fsck.k9.mail.testing.security.TestTrustedSocketFactory
 import java.io.IOException
 import java.security.NoSuchAlgorithmException
 import javax.net.ssl.SSLException
+import net.thunderbird.core.common.exception.MessagingException
+import net.thunderbird.components.core.logging.testing.TestLogger
+import net.thunderbird.legacy.logging.Log
 import okio.ByteString.Companion.encodeUtf8
+import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doThrow
@@ -32,7 +34,12 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verifyNoInteractions
 
 class Pop3ConnectionTest {
-    private val socketFactory = TestTrustedSocketFactory.newInstance()
+    private val socketFactory = TestTrustedSocketFactory
+
+    @Before
+    fun setUp() {
+        Log.logger = TestLogger()
+    }
 
     @Test
     fun `when TrustedSocketFactory throws wrapped CertificateChainException, open() should throw`() {
@@ -384,7 +391,7 @@ class Pop3ConnectionTest {
     }
 
     private fun MockPop3Server.createSettings(
-        authType: AuthType = LOGIN,
+        authType: AuthType = PLAIN,
         connectionSecurity: ConnectionSecurity = NONE,
     ): Pop3Settings {
         return SimplePop3Settings().apply {

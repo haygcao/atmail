@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
-import com.fsck.k9.mail.helpers.KeyStoreProvider;
+import com.fsck.k9.mail.testing.security.TestKeyStoreProvider;
 import com.jcraft.jzlib.JZlib;
 import com.jcraft.jzlib.ZOutputStream;
 import javax.net.ssl.KeyManagerFactory;
@@ -41,7 +41,7 @@ public class MockPop3Server {
     private final Deque<ImapInteraction> interactions = new ConcurrentLinkedDeque<>();
     private final CountDownLatch waitForConnectionClosed = new CountDownLatch(1);
     private final CountDownLatch waitForAllExpectedCommands = new CountDownLatch(1);
-    private final KeyStoreProvider keyStoreProvider;
+    private final TestKeyStoreProvider keyStoreProvider;
     private final Logger logger;
 
     private MockServerThread mockServerThread;
@@ -50,10 +50,10 @@ public class MockPop3Server {
 
 
     public MockPop3Server() {
-        this(KeyStoreProvider.getInstance(), new DefaultLogger());
+        this(TestKeyStoreProvider.INSTANCE, new DefaultLogger());
     }
 
-    public MockPop3Server(KeyStoreProvider keyStoreProvider, Logger logger) {
+    public MockPop3Server(TestKeyStoreProvider keyStoreProvider, Logger logger) {
         this.keyStoreProvider = keyStoreProvider;
         this.logger = logger;
     }
@@ -157,12 +157,13 @@ public class MockPop3Server {
         checkServerRunning();
 
         try {
-            waitForConnectionClosed.await(300L, TimeUnit.MILLISECONDS);
+            // CI can be slower; allow more time for the server thread to observe the close and signal
+            waitForConnectionClosed.await(1000L, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ignored) {
         }
 
         if (!mockServerThread.isClientConnectionClosed()) {
-            throw new AssertionError("Connection open when is shouldn't be");
+            throw new AssertionError("Connection open when it shouldn't be");
         }
     }
 
@@ -233,7 +234,7 @@ public class MockPop3Server {
         private final CountDownLatch waitForConnectionClosed;
         private final CountDownLatch waitForAllExpectedCommands;
         private final Logger logger;
-        private final KeyStoreProvider keyStoreProvider;
+        private final TestKeyStoreProvider keyStoreProvider;
 
         private volatile boolean shouldStop = false;
         private volatile Socket clientSocket;
@@ -245,7 +246,7 @@ public class MockPop3Server {
 
         public MockServerThread(ServerSocket serverSocket, Deque<ImapInteraction> interactions,
                 CountDownLatch waitForConnectionClosed, CountDownLatch waitForAllExpectedCommands, Logger logger,
-                KeyStoreProvider keyStoreProvider) {
+                TestKeyStoreProvider keyStoreProvider) {
             super("MockImapServer");
             this.serverSocket = serverSocket;
             this.interactions = interactions;
@@ -283,7 +284,6 @@ public class MockPop3Server {
                     readAdditionalCommands();
                 }
 
-                waitForConnectionClosed.countDown();
             } catch (UnexpectedCommandException e) {
                 unexpectedCommandException = e;
             } catch (IOException e) {
@@ -293,11 +293,14 @@ public class MockPop3Server {
             } catch (KeyStoreException | CertificateException | UnrecoverableKeyException |
                     NoSuchAlgorithmException | KeyManagementException e) {
                 throw new RuntimeException(e);
+            } finally {
+                // Ensure we always close the socket and signal that the connection has been closed,
+                // even when we exit due to exceptions (e.g., client-initiated close).
+                IOUtils.closeQuietly(socket);
+                waitForConnectionClosed.countDown();
+
+                logger.log("Exiting");
             }
-
-            IOUtils.closeQuietly(socket);
-
-            logger.log("Exiting");
         }
 
         private void handleInteractions(Socket socket) throws IOException, KeyStoreException,

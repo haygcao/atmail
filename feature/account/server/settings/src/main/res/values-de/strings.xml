@@ -24,7 +24,7 @@
     <string name="account_server_settings_connection_security_start_tls">StartTLS</string>
     <string name="account_server_settings_client_certificate_label">Client-Zertifikat</string>
     <string name="account_server_settings_validation_error_imap_prefix_blank">Präfix für IMAP darf nicht leer sein.</string>
-    <string name="account_server_settings_client_certificate_none_selected">Keines</string>
+    <string name="account_server_settings_client_certificate_none_selected">Kein</string>
     <string name="account_server_settings_server_label">Server</string>
     <string name="account_server_settings_security_label">Sicherheit</string>
     <string name="account_server_settings_password_authentication_title">Deine Identität bestätigen</string>
@@ -32,4 +32,7 @@
     <string name="account_server_settings_password_authentication_screen_lock_required">Um dein Passwort hier anzuzeigen, aktiviere die Displaysperre auf diesem Gerät.</string>
     <string name="account_server_settings_validation_error_server_invalid_ip_or_hostname">Ungültige IP oder ungültiger Hostname</string>
     <string name="account_server_settings_incoming_imap_send_client_info_label">Client-Informationen senden</string>
+    <string name="account_server_settings_password_authentication_failed">Authentifizierung fehlgeschlagen!</string>
+    <string name="account_server_settings_password_authentication_unable_to_start">Biometrische Abfrage konnte nicht gestartet werden.</string>
+    <string name="account_server_settings_password_input_label">Passwort</string>
 </resources>
